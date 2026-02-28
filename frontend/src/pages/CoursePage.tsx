@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { api } from "@/api";
-import type { Assessment, Course, CourseDocument, Question } from "@/types";
+import type { Assessment, Course, CourseDocument, GenerateStepEvent, Question } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -266,8 +266,6 @@ export default function CoursePage() {
   );
 }
 
-// ... MaterialsTab, DocumentsTab, and InfoTab components remain exactly identical below this point.
-
 /* ---------- Materials Tab ---------- */
 function MaterialsTab({
   courseId,
@@ -433,12 +431,12 @@ function GenerateMaterialView({
   const [error, setError] = useState("");
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [contextUsed, setContextUsed] = useState<string[]>([]);
-  const [docCount, setDocCount] = useState<number | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [courseTopics, setCourseTopics] = useState<string[]>([]);
+  const [progressSteps, setProgressSteps] = useState<GenerateStepEvent[]>([]);
 
   useEffect(() => {
-    api.listDocuments(courseId).then((docs) => setDocCount(docs.length));
+    api.listDocuments(courseId).then(() => {});
     api.getCourse(courseId).then((c) => setCourseTopics(c.topics ?? []));
   }, [courseId]);
 
@@ -454,17 +452,25 @@ function GenerateMaterialView({
     setError("");
     setGeneratedQuestions([]);
     setContextUsed([]);
+    setProgressSteps([]);
     try {
-      const res = await api.generateQuestions(courseId, {
+      for await (const { event, data } of api.generateQuestionsStream(courseId, {
         prompt: prompt.trim(),
         topics: selectedTopics.length > 0 ? selectedTopics : undefined,
         num_questions: numQuestions,
-      });
-      setGeneratedQuestions(res.questions);
-      setContextUsed(res.context_used);
-      setHasGenerated(true);
-      onGenerated();
-      api.getCourse(courseId).then((c) => setCourseTopics(c.topics ?? []));
+      })) {
+        if (event === "step") {
+          setProgressSteps((prev) => [...prev, data as unknown as GenerateStepEvent]);
+        } else if (event === "result") {
+          setGeneratedQuestions((data as { questions: Question[] }).questions);
+          setContextUsed((data as { context_used: string[] }).context_used);
+          setHasGenerated(true);
+          onGenerated();
+          api.getCourse(courseId).then((c) => setCourseTopics(c.topics ?? []));
+        } else if (event === "error") {
+          setError((data as { message: string }).message);
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -487,7 +493,7 @@ function GenerateMaterialView({
         <CardContent className="space-y-5 pt-0">
           <div>
             <Textarea
-              placeholder="e.g. generate a multiple choice quiz about binary search trees and their time complexity"
+              placeholder='e.g. "test me on unit 1", "quiz me on my weak areas", or "practice binary trees from chapter 3"'
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}
@@ -544,6 +550,32 @@ function GenerateMaterialView({
             </div>
           </div>
 
+          {/* Streaming progress steps */}
+          {generating && progressSteps.length > 0 && (
+            <div className="space-y-1.5 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              {progressSteps.map((s, i) => {
+                const isLatest = i === progressSteps.length - 1;
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2.5 text-sm transition-all ${
+                      isLatest
+                        ? "text-slate-900 font-medium"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {isLatest ? (
+                      <div className="size-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                    ) : (
+                      <Check className="size-3.5 text-green-500 shrink-0" />
+                    )}
+                    <span>{s.message}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Inline Action Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
             <Button
@@ -579,7 +611,11 @@ function GenerateMaterialView({
                 disabled={generating || !prompt.trim()}
                 className="flex-1 sm:flex-none font-bold shadow-md h-10 px-8 transition-all hover:scale-[1.02] active:scale-95"
               >
-                {generating ? "generating..." : "generate"}
+                {generating
+                  ? progressSteps.length > 0
+                    ? progressSteps[progressSteps.length - 1].message
+                    : "starting..."
+                  : "generate"}
               </Button>
             </div>
           </div>
@@ -713,7 +749,7 @@ function DocumentsTab({ courseId }: { courseId: number }) {
     try {
       await api.deleteDocument(docToDelete.id);
       setDocToDelete(null);
-      fetchDocs(); // Refresh the list
+      fetchDocs();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -765,7 +801,6 @@ function DocumentsTab({ courseId }: { courseId: number }) {
         accept=".pdf,.txt,.md,.docx"
         onChange={(e) => {
           handleUpload(e.target.files);
-          // Reset input so the exact same file can be uploaded again if needed
           if (e.target) e.target.value = "";
         }}
       />
@@ -865,7 +900,6 @@ function InfoTab({ courseId }: { courseId: number }) {
     weaknesses.length === 0 &&
     recentActivity.length === 0;
 
-  // The InfoTab itself is strictly scrollable
   return (
     <div className="flex-1 overflow-y-auto pb-12 pr-2 space-y-6">
       {isEmpty ? (

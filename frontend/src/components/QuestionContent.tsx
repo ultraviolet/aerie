@@ -35,21 +35,28 @@ export default function QuestionContent({
   );
 }
 
+/** Inline markdown renderer — converts backticks/LaTeX without adding block-level <p> wrappers. */
+function InlineMarkdown({ text }: { text: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      components={{ p: ({ children }) => <>{children}</> }}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+}
+
 function renderContentNode(
   node: Node,
   showAnswer: boolean,
   showSubmission: boolean,
 ): ReactNode {
-  // --- FIX 1: Wrap plain text in Markdown to catch inline LaTeX ---
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent ?? "";
     if (!text.trim()) return text;
-
-    return (
-      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-        {text}
-      </ReactMarkdown>
-    );
+    return <InlineMarkdown text={text} />;
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
@@ -93,7 +100,6 @@ function renderContentNode(
         />
       );
 
-    // --- FIX 2: Ensure the <markdown> tag also supports math ---
     case "markdown":
       return (
         <ReactMarkdown
@@ -103,6 +109,12 @@ function renderContentNode(
           {textContent}
         </ReactMarkdown>
       );
+
+    // Render code/pre with raw text — don't recurse through markdown
+    case "code":
+      return <code>{textContent}</code>;
+    case "pre":
+      return <pre>{textContent}</pre>;
 
     default:
       if (SAFE_HTML_TAGS.has(tag)) {

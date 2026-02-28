@@ -126,6 +126,55 @@ export const api = {
       body: JSON.stringify(req),
     }),
 
+  // Streaming question generation (SSE)
+  generateQuestionsStream: async function* (
+    courseId: number,
+    req: GenerateRequest,
+  ): AsyncGenerator<{ event: string; data: Record<string, unknown> }> {
+    const res = await fetch(`${BASE}/courses/${courseId}/generate/stream`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(req),
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem("prairie_token");
+        localStorage.removeItem("prairie_user");
+        window.location.href = "/";
+      }
+      const text = await res.text();
+      throw new Error(`API error ${res.status}: ${text}`);
+    }
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      let currentEvent = "message";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          try {
+            yield { event: currentEvent, data: JSON.parse(line.slice(6)) };
+          } catch {
+            // skip malformed JSON
+          }
+          currentEvent = "message";
+        }
+      }
+    }
+  },
+
   // Insights
   getInsights: (courseId: number) =>
     request<{

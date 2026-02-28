@@ -93,3 +93,8 @@ export interface GenerateResponse {
   questions: Question[];
   context_used: string[];
 }
+
+export interface GenerateStepEvent {
+  step: string;
+  message: string;
+}
