@@ -52,7 +52,7 @@ export default function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <img
-            src="/Gemini_Generated_Image_ps4wo3ps4wo3ps4w-removebg-preview.png"
+            src="/aerie.png"
             alt="aerie"
             className="mx-auto h-14"
           />

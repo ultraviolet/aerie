@@ -26,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
         <Link to="/" className="no-underline">
           <img
-            src="/Gemini_Generated_Image_ps4wo3ps4wo3ps4w-removebg-preview.png"
+            src="/aerie.png"
             alt="aerie"
             className="h-10"
           />
