@@ -29,7 +29,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": user_id, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_user(
@@ -41,7 +41,7 @@ def get_current_user(
 
     try:
         payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload["sub"]
+        user_id = int(payload["sub"])
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, KeyError):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
 
