@@ -89,7 +89,6 @@ export default function CoursePage() {
 }
 
 /* ---------- Assessments Tab ---------- */
-
 function AssessmentsTab({ assessments }: { assessments: Assessment[] }) {
   if (assessments.length === 0) {
     return (
@@ -100,25 +99,32 @@ function AssessmentsTab({ assessments }: { assessments: Assessment[] }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {assessments.map((a) => (
         <Link
           key={a.id}
           to={`/assessments/${a.id}`}
-          className="block no-underline"
+          className="no-underline block"
         >
-          <Card className="">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline">{a.type}</Badge>
-                <CardTitle className="text-base">
-                  {a.number ? `${a.number}. ` : ""}
-                  {a.title}
-                </CardTitle>
+          {/* Added cursor-pointer to match dashboard interaction */}
+          <Card className="cursor-pointer h-full">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                {/* Changed Badge variant/style to match the neutral slate theme */}
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-slate-700 text-slate-500 uppercase font-mono tracking-tighter"
+                >
+                  {a.type}
+                </Badge>
               </div>
-              <CardDescription>
+              <CardTitle className="text-base">
+                {a.number ? `${a.number}. ` : ""}
+                {a.title}
+              </CardTitle>
+              <CardDescription className="text-[10px] font-mono text-slate-500 tracking-tighter uppercase mt-1">
                 {a.question_ids.length} question
-                {a.question_ids.length !== 1 ? "s" : ""}
+                {a.question_ids.length !== 1 ? "s" : ""} detected
               </CardDescription>
             </CardHeader>
           </Card>

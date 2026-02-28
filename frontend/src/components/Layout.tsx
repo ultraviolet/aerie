@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -5,11 +6,27 @@ import { Button } from "@/components/ui/button";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, logout } = useAuth();
+
   const isQuestionPage = location.pathname.startsWith("/questions/");
+  const isDashboardPage = location.pathname === "/";
+
+  // Base class to ensure Flexbox handles the height properly
+  let mainClasses = "flex-1 min-h-0 ";
+
+  if (isDashboardPage) {
+    // Restores your side padding and max-width, but keeps the scroll lock
+    mainClasses += "mx-auto w-full max-w-5xl px-6 py-8 overflow-hidden";
+  } else if (isQuestionPage) {
+    // Full screen, no padding, no scroll (your original setup)
+    mainClasses += "overflow-hidden";
+  } else {
+    // Standard pages: centered, padded, and scrollable
+    mainClasses += "mx-auto w-full max-w-5xl px-6 py-8 overflow-y-auto";
+  }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <nav className="flex items-center gap-6 border-b border-slate-800 bg-slate-900 px-6 py-3">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+      <nav className="flex shrink-0 items-center gap-6 border-b border-slate-800 bg-slate-900 px-6 py-3">
         <Link
           to="/"
           className="text-lg font-bold tracking-tight text-white no-underline hover:text-white/90"
@@ -38,15 +55,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </nav>
-      <main
-        className={
-          isQuestionPage
-            ? "flex-1 overflow-hidden"
-            : "mx-auto w-full max-w-5xl flex-1 px-6 py-8"
-        }
-      >
-        {children}
-      </main>
+
+      <main className={mainClasses}>{children}</main>
     </div>
   );
 }
