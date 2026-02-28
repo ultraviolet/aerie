@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import MathLabel from "./MathLabel";
 
 interface Props {
   answersName: string;
@@ -11,8 +11,8 @@ interface Props {
 
 export default function PLIntegerInput({ answersName, label, value, onChange, disabled }: Props) {
   return (
-    <div className="space-y-2">
-      {label && <Label htmlFor={answersName}>{label}</Label>}
+    <div className="flex items-center gap-2">
+      {label && <MathLabel text={label} />}
       <Input
         id={answersName}
         type="number"
@@ -22,6 +22,7 @@ export default function PLIntegerInput({ answersName, label, value, onChange, di
         placeholder="Enter an integer"
         step="1"
         pattern="-?[0-9]*"
+        className="max-w-48"
       />
     </div>
   );

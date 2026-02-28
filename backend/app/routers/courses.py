@@ -167,7 +167,8 @@ def _process_insights_with_gemini(raw: dict) -> dict:
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 temperature=0.2,
-                max_output_tokens=1024,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
             ),
         )
         text = response.text.strip()
@@ -175,6 +176,14 @@ def _process_insights_with_gemini(raw: dict) -> dict:
         if text.startswith("```"):
             text = re.sub(r"^```(?:json)?\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
+        # Check for truncation
+        if (
+            response.candidates
+            and response.candidates[0].finish_reason
+            and str(response.candidates[0].finish_reason) not in ("STOP", "FinishReason.STOP", "1")
+        ):
+            log.warning("Gemini insights truncated (finish_reason=%s)", response.candidates[0].finish_reason)
+        log.debug("Gemini insights raw (%d chars): %s", len(text), text[:500])
         result = json.loads(text)
         return {
             "strengths": result.get("strengths", []),
