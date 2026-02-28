@@ -1,30 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Plus,
-  BrainCircuit,
-  History,
-  Sparkles,
-  ArrowRight,
-  MessageSquare,
-  GraduationCap,
-  Flame,
-  Info,
-  BookOpen,
-} from "lucide-react";
+import { Plus, History, ArrowRight, Flame, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardTitle, CardContent, CardHeader } from "@/components/ui/card";
 import { api } from "@/api";
 import type { Course, RecentAssessment } from "@/types";
+import { MemoryGraph } from "@supermemory/memory-graph";
+import type { DocumentWithMemories } from "@supermemory/memory-graph";
+import "@supermemory/memory-graph/styles.css";
 
 // 1. IMPORT YOUR FORM COMPONENT HERE (Adjust the path if needed)
 import CreateCourseForm from "@/components/elements/CreateCourseForm";
@@ -35,12 +21,26 @@ export default function DashboardPage() {
   const recentCardRef = useRef<HTMLDivElement>(null);
   const [recentLimit, setRecentLimit] = useState(4);
 
+  const [graphDocs, setGraphDocs] = useState<DocumentWithMemories[]>([]);
+  const [graphLoading, setGraphLoading] = useState(true);
+  const [graphError, setGraphError] = useState<Error | null>(null);
+
   // 2. ADD STATE FOR MODAL
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
     api.recentAssessments().then(setRecentItems).catch(console.error);
+    api
+      .getKnowledgeGraph()
+      .then((data) => {
+        setGraphDocs((data.documents ?? []) as DocumentWithMemories[]);
+        setGraphLoading(false);
+      })
+      .catch((err) => {
+        setGraphError(err instanceof Error ? err : new Error(String(err)));
+        setGraphLoading(false);
+      });
   }, []);
 
   // Updated ResizeObserver for the slimmer 48px items
@@ -111,26 +111,22 @@ export default function DashboardPage() {
           className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0 overflow-hidden"
           style={{ minHeight: 0, overflow: "hidden" }}
         >
-          <Card className="bg-white border-slate-200 flex flex-col h-full shadow-lg min-h-0">
-            <CardHeader className="shrink-0 pb-4">
-              <CardTitle className="text-3xl font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="size-8 text-primary" /> Start
+          <Card className="bg-slate-900 border-slate-700 flex flex-col h-full shadow-lg min-h-0 overflow-hidden">
+            <CardHeader className="shrink-0 pb-2 pt-3 px-4">
+              <CardTitle className="text-xs font-black text-white uppercase tracking-widest">
+                Knowledge Graph
               </CardTitle>
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Access your knowledge base through dialogue or structured
-                testing.
-              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3 flex-1 justify-end p-6 pt-0">
-              <Button
-                variant="outline"
-                className="w-full bg-white border-slate-300 text-slate-900 font-bold h-14 shrink-0"
-              >
-                <MessageSquare className="mr-2 size-5" /> AI Chat
-              </Button>
-              <Button className="w-full bg-primary text-primary-foreground font-black text-xl shadow-xl hover:scale-[1.02] transition-transform flex-1 min-h-[4rem]">
-                <BrainCircuit className="mr-2 size-6" /> Practice Quiz
-              </Button>
+            <CardContent className="flex-1 p-0 min-h-0">
+              <div className="h-full min-h-[280px]">
+                <MemoryGraph
+                  documents={graphDocs}
+                  isLoading={graphLoading}
+                  error={graphError}
+                  variant="consumer"
+                  showSpacesSelector={false}
+                />
+              </div>
             </CardContent>
           </Card>
 

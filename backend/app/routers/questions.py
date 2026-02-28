@@ -79,7 +79,7 @@ def last_attempt(question_id: int, db: Session = Depends(get_db), user: User = D
             rendered_html=rendered_html,
             created_at=variant.created_at,
         ),
-        "submission": sub,
+        "submission": SubmissionOut.model_validate(sub) if sub else None,
     }
 
 

@@ -35,6 +35,35 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 def list_courses(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return db.query(Course).filter(Course.user_id == user.id).all()
 
+
+@router.get("/graph/all")
+def get_knowledge_graph(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Fetch the supermemory knowledge graph for all of a user's courses.
+
+    Includes both course-level document memories (container_tag = course slug)
+    and user-specific learning memories (container_tag = user_{id}_course_{id}).
+    """
+    courses = db.query(Course).filter(Course.user_id == user.id).all()
+    empty = {"documents": [], "pagination": {"currentPage": 1, "limit": 300, "totalItems": 0, "totalPages": 0}}
+    if not courses:
+        return empty
+
+    container_tags: list[str] = []
+    for c in courses:
+        if c.container_tag:
+            container_tags.append(c.container_tag)
+        container_tags.append(f"user_{user.id}_course_{c.id}")
+
+    try:
+        return sm.get_graph_data(container_tags, limit=300)
+    except Exception:
+        log.exception("Failed to fetch knowledge graph for user %s", user.id)
+        return empty
+
+
 @router.get("/{course_id}", response_model=CourseOut)
 def get_course(course_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
