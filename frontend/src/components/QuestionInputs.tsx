@@ -8,6 +8,7 @@ import PLNumberInput from "./elements/PLNumberInput";
 import PLOrderBlocks from "./elements/PLOrderBlocks";
 import PLStringInput from "./elements/PLStringInput";
 import PLTrueFalse from "./elements/PLTrueFalse";
+import PLCodeEditor from "./elements/PLCodeEditor";
 import { extractInputs, parseHtml } from "./parseQuestionHtml";
 import type { ParsedInput } from "./parseQuestionHtml";
 
@@ -16,6 +17,7 @@ interface Props {
   answers: Record<string, unknown>;
   onAnswerChange: (name: string, value: unknown) => void;
   disabled: boolean;
+  params?: Record<string, unknown>;
 }
 
 /** Shuffle an array (Fisher-Yates) and return a new array. */
@@ -31,7 +33,7 @@ function shuffle<T>(arr: T[]): T[] {
 /**
  * Renders only the interactive input elements extracted from PrairieLearn HTML (right panel).
  */
-export default function QuestionInputs({ html, answers: rawAnswers, onAnswerChange, disabled }: Props) {
+export default function QuestionInputs({ html, answers: rawAnswers, onAnswerChange, disabled, params }: Props) {
   const answers = rawAnswers ?? {};
   const inputs = useMemo(() => {
     const root = parseHtml(html);
@@ -59,7 +61,7 @@ export default function QuestionInputs({ html, answers: rawAnswers, onAnswerChan
     <div className="space-y-5">
       {inputs.map((input, i) => (
         <div key={`${input.answersName}-${i}`}>
-          {renderInput(input, answers, onAnswerChange, disabled, shuffledItemsRef.current)}
+          {renderInput(input, answers, onAnswerChange, disabled, shuffledItemsRef.current, params)}
         </div>
       ))}
     </div>
@@ -72,6 +74,7 @@ function renderInput(
   onAnswerChange: (name: string, value: unknown) => void,
   disabled: boolean,
   shuffledItems: Map<string, { text: string; id: number }[]>,
+  params?: Record<string, unknown>,
 ) {
   switch (input.type) {
     case "string":
@@ -174,5 +177,25 @@ function renderInput(
           disabled={disabled}
         />
       );
+
+    case "code-editor": {
+      const visibleTestCases = (params?.[`_code_visible_tests_${input.answersName}`] ?? []) as Array<{
+        input: unknown[];
+        expected: unknown;
+        description?: string;
+      }>;
+      return (
+        <PLCodeEditor
+          answersName={input.answersName}
+          language={input.language ?? "python"}
+          fnName={input.fnName ?? ""}
+          starterCode={input.starterCode ?? ""}
+          value={String(answers[input.answersName] ?? "")}
+          onChange={(n, v) => onAnswerChange(n, v)}
+          disabled={disabled}
+          visibleTestCases={visibleTestCases}
+        />
+      );
+    }
   }
 }

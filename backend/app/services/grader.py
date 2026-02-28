@@ -1,8 +1,12 @@
 """Grade a submission by executing server.py grade()."""
 
 import importlib.util
+import json as json_mod
 import logging
+import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -123,6 +127,131 @@ def _lcs_length(a: list[str], b: list[str]) -> int:
     return dp[m][n]
 
 
+_CODE_HARNESS = """\
+import json, sys, traceback
+
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+
+test_cases = data["test_cases"]
+fn_name = data["fn_name"]
+
+# Load student code
+try:
+    with open(sys.argv[2]) as f:
+        exec(compile(f.read(), "student_code.py", "exec"))
+except Exception as e:
+    print(json.dumps({"error": f"Code failed to compile: {e}"}))
+    sys.exit(0)
+
+fn = locals().get(fn_name) or globals().get(fn_name)
+if fn is None:
+    print(json.dumps({"error": f"Function '{fn_name}' not defined"}))
+    sys.exit(0)
+
+results = []
+for i, tc in enumerate(test_cases):
+    try:
+        actual = fn(*tc["input"])
+        passed = (actual == tc["expected"])
+        results.append({
+            "index": i, "passed": passed,
+            "actual": repr(actual), "expected": repr(tc["expected"]),
+            "description": tc.get("description", ""),
+            "hidden": tc.get("hidden", False),
+        })
+    except Exception as e:
+        results.append({
+            "index": i, "passed": False,
+            "error": str(e),
+            "expected": repr(tc["expected"]),
+            "description": tc.get("description", ""),
+            "hidden": tc.get("hidden", False),
+        })
+
+print(json.dumps({"results": results}))
+"""
+
+
+def _grade_code_submission(
+    submitted_code: str,
+    correct_answer_data: dict[str, Any],
+) -> dict[str, Any]:
+    """Grade a code submission by running it against all test cases in a subprocess."""
+    import re as _re
+
+    test_cases = correct_answer_data.get("test_cases", [])
+
+    # Extract function name from reference solution
+    ref_code = correct_answer_data.get("code", "")
+    fn_name = ""
+    match = _re.search(r"def\s+(\w+)\s*\(", ref_code)
+    if match:
+        fn_name = match.group(1)
+    if not fn_name:
+        match = _re.search(r"def\s+(\w+)\s*\(", submitted_code)
+        if match:
+            fn_name = match.group(1)
+
+    if not test_cases or not fn_name:
+        return {"score": 0.0, "passed": 0, "total": 0, "results": [],
+                "error": "No test cases or function name defined"}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        student_file = os.path.join(tmpdir, "student_code.py")
+        harness_file = os.path.join(tmpdir, "harness.py")
+        test_data_file = os.path.join(tmpdir, "test_cases.json")
+
+        with open(student_file, "w") as f:
+            f.write(submitted_code)
+        with open(test_data_file, "w") as f:
+            json_mod.dump({"test_cases": test_cases, "fn_name": fn_name}, f)
+        with open(harness_file, "w") as f:
+            f.write(_CODE_HARNESS)
+
+        try:
+            proc = subprocess.run(
+                [sys.executable, harness_file, test_data_file, student_file],
+                capture_output=True, text=True, timeout=10, cwd=tmpdir,
+            )
+            if proc.returncode != 0 and not proc.stdout.strip():
+                return {
+                    "score": 0.0, "passed": 0, "total": len(test_cases),
+                    "results": [],
+                    "error": f"Execution error: {proc.stderr[:500]}",
+                }
+            output = json_mod.loads(proc.stdout.strip())
+        except subprocess.TimeoutExpired:
+            return {
+                "score": 0.0, "passed": 0, "total": len(test_cases),
+                "results": [],
+                "error": "Code execution timed out (10s limit). Check for infinite loops.",
+            }
+        except (json_mod.JSONDecodeError, Exception) as e:
+            return {
+                "score": 0.0, "passed": 0, "total": len(test_cases),
+                "results": [],
+                "error": f"Grading error: {e}",
+            }
+
+    if "error" in output:
+        return {
+            "score": 0.0, "passed": 0, "total": len(test_cases),
+            "results": [], "error": output["error"],
+        }
+
+    results = output.get("results", [])
+    passed = sum(1 for r in results if r.get("passed"))
+    total = len(results)
+
+    return {
+        "score": passed / total if total > 0 else 0.0,
+        "passed": passed,
+        "total": total,
+        "results": results,
+    }
+
+
 def grade_submission(
     question_dir: str,
     course_path: str,
@@ -161,23 +290,79 @@ def grade_submission(
             data["score"] = 1.0
             data["feedback"] = {"message": "No grading criteria defined."}
         else:
-            total_score = 0.0
-            total = len(correct_answers)
-            for key, expected in correct_answers.items():
-                submitted = submitted_answers.get(key)
-                result = _answers_match(submitted, expected)
-                if isinstance(result, float):
-                    score = result
-                else:
-                    score = 1.0 if result else 0.0
-                total_score += score
-                data["partial_scores"][key] = {"score": score}
-            data["score"] = total_score / total if total > 0 else 0
-            data["feedback"] = {
-                "message": f"Score: {total_score:.1f}/{total}",
-                "total_score": total_score,
-                "total": total,
-            }
+            # Detect code questions (values that are dicts with code + test_cases)
+            code_keys = [
+                k for k, v in correct_answers.items()
+                if isinstance(v, dict) and "code" in v and "test_cases" in v
+            ]
+            non_code_keys = [k for k in correct_answers if k not in code_keys]
+
+            if code_keys:
+                # Grade code submissions
+                total_score = 0.0
+                total_keys = len(correct_answers)
+                all_code_results = []
+
+                for key in code_keys:
+                    submitted_code = submitted_answers.get(key, "")
+                    if not isinstance(submitted_code, str):
+                        submitted_code = str(submitted_code)
+                    result = _grade_code_submission(submitted_code, correct_answers[key])
+                    score = result["score"]
+                    total_score += score
+                    data["partial_scores"][key] = {
+                        "score": score,
+                        "passed": result.get("passed", 0),
+                        "total": result.get("total", 0),
+                    }
+                    all_code_results.append(result)
+
+                # Grade any non-code keys with standard matching
+                for key in non_code_keys:
+                    submitted = submitted_answers.get(key)
+                    match_result = _answers_match(submitted, correct_answers[key])
+                    s = match_result if isinstance(match_result, float) else (1.0 if match_result else 0.0)
+                    total_score += s
+                    data["partial_scores"][key] = {"score": s}
+
+                data["score"] = total_score / total_keys if total_keys > 0 else 0
+
+                # Build feedback with test results
+                code_result = all_code_results[0] if all_code_results else {}
+                passed = code_result.get("passed", 0)
+                total = code_result.get("total", 0)
+                error = code_result.get("error", "")
+                test_results = code_result.get("results", [])
+
+                visible_results = [r for r in test_results if not r.get("hidden")]
+                hidden_passed = sum(1 for r in test_results if r.get("hidden") and r.get("passed"))
+                hidden_total = sum(1 for r in test_results if r.get("hidden"))
+
+                data["feedback"] = {
+                    "message": f"Tests passed: {passed}/{total}" + (f" | Error: {error}" if error else ""),
+                    "test_results": visible_results,
+                    "hidden_summary": f"{hidden_passed}/{hidden_total} hidden tests passed",
+                    "error": error,
+                }
+            else:
+                # Standard grading for non-code questions
+                total_score = 0.0
+                total = len(correct_answers)
+                for key, expected in correct_answers.items():
+                    submitted = submitted_answers.get(key)
+                    result = _answers_match(submitted, expected)
+                    if isinstance(result, float):
+                        score = result
+                    else:
+                        score = 1.0 if result else 0.0
+                    total_score += score
+                    data["partial_scores"][key] = {"score": score}
+                data["score"] = total_score / total if total > 0 else 0
+                data["feedback"] = {
+                    "message": f"Score: {total_score:.1f}/{total}",
+                    "total_score": total_score,
+                    "total": total,
+                }
 
     return {
         "score": data.get("score", 0),

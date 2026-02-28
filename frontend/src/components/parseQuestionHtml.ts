@@ -13,6 +13,7 @@ const INPUT_TAGS = new Set([
   "pl-matching",
   "pl-order-blocks",
   "pl-true-false",
+  "pl-code-editor",
 ]);
 
 export interface ParsedAnswer {
@@ -33,13 +34,16 @@ export interface ParsedStatement {
 
 export interface ParsedInput {
   type: "string" | "number" | "integer" | "checkbox" | "multiple-choice"
-    | "dropdown" | "matching" | "order-blocks" | "true-false";
+    | "dropdown" | "matching" | "order-blocks" | "true-false" | "code-editor";
   answersName: string;
   label?: string;
   answers?: ParsedAnswer[];       // for checkbox / multiple-choice / dropdown / order-blocks
   options?: ParsedOption[];       // for matching
   statements?: ParsedStatement[]; // for matching
   correctAnswer?: string;         // for true-false
+  starterCode?: string;           // for code-editor
+  language?: string;              // for code-editor
+  fnName?: string;                // for code-editor
 }
 
 export function parseHtml(html: string): Element | null {
@@ -163,6 +167,17 @@ export function extractInputs(root: Element): ParsedInput[] {
         type: "true-false",
         answersName: node.getAttribute("answers-name") ?? "answer",
         correctAnswer: node.getAttribute("correct-answer") ?? "true",
+      });
+      return;
+    }
+
+    if (tag === "pl-code-editor") {
+      inputs.push({
+        type: "code-editor",
+        answersName: node.getAttribute("answers-name") ?? "code",
+        language: node.getAttribute("language") ?? "python",
+        fnName: node.getAttribute("fn-name") ?? "",
+        starterCode: node.textContent?.trim() ?? "",
       });
       return;
     }

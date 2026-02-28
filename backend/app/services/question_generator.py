@@ -153,6 +153,62 @@ HTML:
 correct_answers: `{"X": "True"}`
 Set correct-answer to "true" or "false". The correct_answers value is "True" or "False" (capitalized).
 The question text should make a clear statement that is definitively true or false.""",
+
+    "pl-code-editor": """\
+### pl-code-editor — Write Python code to solve a programming problem
+Best for: algorithm implementation, data structure operations, function writing, coding exercises.
+HTML:
+```
+<pl-question-panel>
+<markdown>
+Write a function `fn_name(params)` that does X.
+
+**Examples:**
+- `fn_name(arg1, arg2)` → `expected_result`
+</markdown>
+</pl-question-panel>
+
+<pl-code-editor answers-name="X" language="python" fn-name="fn_name">
+def fn_name(params):
+    # Your code here
+    pass
+</pl-code-editor>
+
+<pl-answer-panel>
+<markdown>
+**Reference solution:**
+</markdown>
+<pl-code language="python">
+def fn_name(params):
+    return ...
+</pl-code>
+</pl-answer-panel>
+```
+The text content inside `<pl-code-editor>` is the starter code shown to the student.
+correct_answers format:
+```
+{
+  "X": {
+    "code": "def fn_name(params):\\n    return ...",
+    "test_cases": [
+      {"input": [arg1, arg2], "expected": result, "hidden": false, "description": "Basic test"},
+      {"input": [arg1, arg2], "expected": result, "hidden": true, "description": "Edge case"}
+    ]
+  }
+}
+```
+CRITICAL RULES:
+- `correct_answers.X.code` is the reference solution (complete, working Python code).
+- `correct_answers.X.test_cases` includes BOTH visible and hidden test cases.
+- Visible tests (hidden: false): 2-3 sample tests shown to the student as examples.
+- Hidden tests (hidden: true): 3-5 additional rigorous tests for edge cases, empty inputs, large inputs.
+- The `fn-name` attribute MUST match the function name in starter code, solution, and test cases.
+- `language` is always "python".
+- Starter code MUST be a valid Python function skeleton with `pass` or `return None`.
+- Test case `input` is always a JSON list of positional arguments to pass to the function.
+- Test case `expected` is the expected return value (any JSON-serializable Python value: int, float, str, list, dict, bool, None).
+- Include at least 5 total test cases (2-3 visible + 3-5 hidden).
+- DO NOT use input/output or stdin/stdout — only function calls and return values.""",
 }
 
 # Short descriptions for Pass 1 (type selection)
@@ -166,6 +222,7 @@ QUESTION_TYPE_SUMMARIES: dict[str, str] = {
     "pl-matching": "Match statements to options. Good for term-to-definition, concept-to-example pairing.",
     "pl-order-blocks": "Put items in correct order. Good for algorithm steps, process ordering, timelines.",
     "pl-true-false": "True or False. Good for verifying facts, definitions, common misconceptions.",
+    "pl-code-editor": "Write Python code to solve a problem. Good for algorithm implementation, function writing, coding exercises.",
 }
 
 SYSTEM_PROMPT_BASE = """\
@@ -442,6 +499,7 @@ def _fix_correct_answers(question_html: str, correct_answers: dict) -> dict:
                 fixed[answers_name] = "True" if correct_val == "true" else "False"
 
         # pl-number-input, pl-integer-input, pl-string-input: no fix needed
+        # pl-code-editor: complex structure (code + test_cases dict), no HTML-based fix needed
 
         else:
             continue

@@ -77,6 +77,18 @@ def generate_variant(
         # AI-generated questions: use stored correct answers
         data["correct_answers"] = stored_correct_answers
 
+        # For code-editor questions: copy visible test cases into params
+        # so the frontend can show them without exposing hidden tests.
+        for key, val in stored_correct_answers.items():
+            if isinstance(val, dict) and "test_cases" in val and "code" in val:
+                visible_tests = [
+                    {"input": tc["input"], "expected": tc["expected"],
+                     "description": tc.get("description", "")}
+                    for tc in val["test_cases"]
+                    if not tc.get("hidden", False)
+                ]
+                data["params"][f"_code_visible_tests_{key}"] = visible_tests
+
     # Render the question HTML with Mustache/Chevron using params
     rendered_html = question_html
     if data["params"]:
