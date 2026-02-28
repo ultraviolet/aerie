@@ -6,20 +6,40 @@
 const INPUT_TAGS = new Set([
   "pl-string-input",
   "pl-number-input",
+  "pl-integer-input",
   "pl-checkbox",
   "pl-multiple-choice",
+  "pl-dropdown",
+  "pl-matching",
+  "pl-order-blocks",
+  "pl-true-false",
 ]);
 
 export interface ParsedAnswer {
   text: string;
   correct: boolean;
+  ranking?: number; // for pl-order-blocks
+}
+
+export interface ParsedOption {
+  name: string;
+  text: string;
+}
+
+export interface ParsedStatement {
+  text: string;
+  match: string; // option name this statement matches
 }
 
 export interface ParsedInput {
-  type: "string" | "number" | "checkbox" | "multiple-choice";
+  type: "string" | "number" | "integer" | "checkbox" | "multiple-choice"
+    | "dropdown" | "matching" | "order-blocks" | "true-false";
   answersName: string;
   label?: string;
-  answers?: ParsedAnswer[]; // for checkbox / multiple-choice
+  answers?: ParsedAnswer[];       // for checkbox / multiple-choice / dropdown / order-blocks
+  options?: ParsedOption[];       // for matching
+  statements?: ParsedStatement[]; // for matching
+  correctAnswer?: string;         // for true-false
 }
 
 export function parseHtml(html: string): Element | null {
@@ -58,6 +78,15 @@ export function extractInputs(root: Element): ParsedInput[] {
       return;
     }
 
+    if (tag === "pl-integer-input") {
+      inputs.push({
+        type: "integer",
+        answersName: node.getAttribute("answers-name") ?? "answer",
+        label: node.getAttribute("label") ?? undefined,
+      });
+      return;
+    }
+
     if (tag === "pl-checkbox") {
       const answers = Array.from(node.querySelectorAll("pl-answer")).map((a) => ({
         text: a.textContent?.trim() ?? "",
@@ -80,6 +109,60 @@ export function extractInputs(root: Element): ParsedInput[] {
         type: "multiple-choice",
         answersName: node.getAttribute("answers-name") ?? "answer",
         answers,
+      });
+      return;
+    }
+
+    if (tag === "pl-dropdown") {
+      const answers = Array.from(node.querySelectorAll("pl-answer")).map((a) => ({
+        text: a.textContent?.trim() ?? "",
+        correct: a.getAttribute("correct") === "true",
+      }));
+      inputs.push({
+        type: "dropdown",
+        answersName: node.getAttribute("answers-name") ?? "answer",
+        answers,
+      });
+      return;
+    }
+
+    if (tag === "pl-matching") {
+      const options: ParsedOption[] = Array.from(node.querySelectorAll("pl-option")).map((o) => ({
+        name: o.getAttribute("name") ?? "",
+        text: o.textContent?.trim() ?? "",
+      }));
+      const statements: ParsedStatement[] = Array.from(node.querySelectorAll("pl-statement")).map((s) => ({
+        text: s.textContent?.trim() ?? "",
+        match: s.getAttribute("match") ?? "",
+      }));
+      inputs.push({
+        type: "matching",
+        answersName: node.getAttribute("answers-name") ?? "answer",
+        options,
+        statements,
+      });
+      return;
+    }
+
+    if (tag === "pl-order-blocks") {
+      const answers = Array.from(node.querySelectorAll("pl-answer")).map((a) => ({
+        text: a.textContent?.trim() ?? "",
+        correct: a.getAttribute("correct") !== "false",
+        ranking: a.getAttribute("ranking") ? parseInt(a.getAttribute("ranking")!, 10) : undefined,
+      }));
+      inputs.push({
+        type: "order-blocks",
+        answersName: node.getAttribute("answers-name") ?? "answer",
+        answers,
+      });
+      return;
+    }
+
+    if (tag === "pl-true-false") {
+      inputs.push({
+        type: "true-false",
+        answersName: node.getAttribute("answers-name") ?? "answer",
+        correctAnswer: node.getAttribute("correct-answer") ?? "true",
       });
       return;
     }
