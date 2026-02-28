@@ -13,6 +13,7 @@ export interface Course {
   name: string;
   title: string;
   path: string;
+  container_tag: string;
 }
 
 export interface Assessment {

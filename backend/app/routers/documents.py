@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -76,7 +78,21 @@ def list_documents(
     user: User = Depends(get_current_user),
 ):
     course = _get_course(course_id, db, user)
-    return db.query(Document).filter(Document.course_id == course.id).all()
+    docs = db.query(Document).filter(Document.course_id == course.id).all()
+
+    # Sync status from Supermemory for any docs still processing
+    dirty = False
+    for doc in docs:
+        if doc.status == "processing" and doc.supermemory_id:
+            try:
+                doc.status = sm.get_document_status(doc.supermemory_id)
+                dirty = True
+            except Exception:
+                pass
+    if dirty:
+        db.commit()
+
+    return docs
 
 
 @router.delete("/documents/{doc_id}")
@@ -98,7 +114,9 @@ def delete_document(
         try:
             sm.delete_document(doc.supermemory_id)
         except Exception:
-            pass  # Best-effort deletion from Supermemory
+            logging.getLogger(__name__).exception(
+                "Failed to delete doc %s from Supermemory", doc.supermemory_id
+            )
 
     db.delete(doc)
     db.commit()

@@ -6,11 +6,18 @@ from app.models import Course, User
 from app.schemas import CourseLoadRequest, CourseOut
 from app.services.course_loader import load_course
 
-router = APIRouter(prefix="/api/courses", tags=["courses"])
+router = APIRouter(prefix="/courses", tags=["courses"])
 
 @router.get("/", response_model=list[CourseOut])
 def list_courses(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return db.query(Course).filter(Course.user_id == user.id).all()
+
+@router.get("/{course_id}", response_model=CourseOut)
+def get_course(course_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
 
 @router.post("/load", response_model=CourseOut)
 def load_course_from_path(

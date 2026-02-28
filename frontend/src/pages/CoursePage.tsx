@@ -185,10 +185,10 @@ function DocumentsTab({ courseId }: { courseId: number }) {
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-sm font-medium truncate">{doc.filename}</span>
                     <Badge
-                      variant={doc.status === "ready" ? "default" : "secondary"}
+                      variant={doc.status === "done" ? "default" : doc.status === "failed" ? "destructive" : "secondary"}
                       className="text-xs shrink-0"
                     >
-                      {doc.status}
+                      {doc.status === "done" ? "ready" : doc.status}
                     </Badge>
                   </div>
                   <Button
@@ -220,10 +220,17 @@ function GenerateTab({
 }) {
   const [prompt, setPrompt] = useState("");
   const [topic, setTopic] = useState("");
+  const [numQuestions, setNumQuestions] = useState(5);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [contextUsed, setContextUsed] = useState<string[]>([]);
+  const [docCount, setDocCount] = useState<number | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
+
+  useEffect(() => {
+    api.listDocuments(courseId).then((docs) => setDocCount(docs.length));
+  }, [courseId]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -235,9 +242,11 @@ function GenerateTab({
       const res = await api.generateQuestions(courseId, {
         prompt: prompt.trim(),
         topic: topic.trim() || undefined,
+        num_questions: numQuestions,
       });
       setGeneratedQuestions(res.questions);
       setContextUsed(res.context_used);
+      setHasGenerated(true);
       onGenerated();
     } catch (e) {
       setError(String(e));
@@ -248,6 +257,18 @@ function GenerateTab({
 
   return (
     <div className="space-y-6">
+      {docCount === 0 && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="py-3 px-4">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              No documents uploaded yet. The AI will generate generic questions without
+              your course materials. Upload documents in the Documents tab first for
+              better results.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Generate Questions with AI</CardTitle>
@@ -281,6 +302,16 @@ function GenerateTab({
                 onChange={(e) => setTopic(e.target.value)}
               />
             </div>
+            <div className="w-24">
+              <label className="text-sm font-medium mb-1 block">Questions</label>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={numQuestions}
+                onChange={(e) => setNumQuestions(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
+              />
+            </div>
             <Button onClick={handleGenerate} disabled={generating || !prompt.trim()}>
               {generating ? "Generating..." : "Generate"}
             </Button>
@@ -311,6 +342,19 @@ function GenerateTab({
             </Link>
           ))}
         </div>
+      )}
+
+      {/* No context warning */}
+      {hasGenerated && contextUsed.length === 0 && generatedQuestions.length > 0 && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="py-3 px-4">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              No course material context was used for this question. The AI generated it
+              from general knowledge. Make sure your documents are uploaded and have finished
+              processing (status: &quot;done&quot;) in the Documents tab.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Context preview */}

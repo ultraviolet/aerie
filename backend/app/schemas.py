@@ -48,6 +48,7 @@ class CourseOut(BaseModel):
     name: str
     title: str
     path: str
+    container_tag: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -127,7 +128,7 @@ class DocumentOut(BaseModel):
 class GenerateRequest(BaseModel):
     prompt: str
     topic: str = ""
-    num_questions: int = 1
+    num_questions: int = 5
 
 
 class GenerateResponse(BaseModel):
