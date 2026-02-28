@@ -1,140 +1,212 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api } from "@/api";
-import type { Assessment, Course } from "@/types";
-import { Badge } from "@/components/ui/badge";
+"use client";
+
+import * as React from "react";
+import {
+  Plus,
+  LayoutGrid,
+  GraduationCap,
+  Save,
+  FileText,
+  BrainCircuit,
+  BookOpen,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+
+function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { user, logout } = useAuth();
+  const isQuestionPage = location.pathname.startsWith("/questions/");
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <nav className="flex items-center gap-6 border-b border-slate-800 bg-slate-900 px-6 py-3">
+        <Link
+          to="/"
+          className="text-lg font-bold tracking-tight text-white no-underline hover:text-white/90"
+        >
+          prAIrie
+        </Link>
+        <Link
+          to="/"
+          className="text-sm text-slate-400 no-underline hover:text-white"
+        >
+          Dashboard
+        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {user && (
+            <>
+              <span className="text-sm text-slate-400">{user.username}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-400 hover:text-white"
+                onClick={logout}
+              >
+                Log out
+              </Button>
+            </>
+          )}
+        </div>
+      </nav>
+      <main
+        className={
+          isQuestionPage
+            ? "flex-1 overflow-hidden"
+            : "mx-auto w-full max-w-5xl flex-1 px-6 py-8"
+        }
+      >
+        {children}
+      </main>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [assessments, setAssessments] = useState<Record<number, Assessment[]>>({});
-  const [loadPath, setLoadPath] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCreateForm, setShowCreateForm] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [courses, setCourses] = React.useState<any[]>([]);
+  const [coursePath, setCoursePath] = React.useState("");
 
-  const fetchCourses = async () => {
-    const data = await api.listCourses();
-    setCourses(data);
-    const aMap: Record<number, Assessment[]> = {};
-    for (const c of data) {
-      aMap[c.id] = await api.listAssessments(c.id);
-    }
-    setAssessments(aMap);
-  };
-
-  useEffect(() => {
+  // 1. Fetch Library on Load
+  React.useEffect(() => {
+    const fetchCourses = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch("/api/courses", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setCourses(await res.json());
+      } catch (err) {
+        console.error("Library fetch failed", err);
+      }
+    };
     fetchCourses();
   }, []);
 
-  const handleLoad = async () => {
-    if (!loadPath.trim()) return;
-    setLoading(true);
-    setError("");
+  // 2. Handle Creation (Loader Hook)
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const token = localStorage.getItem("token");
+
     try {
-      await api.loadCourse(loadPath.trim());
-      await fetchCourses();
-      setLoadPath("");
-      setDialogOpen(false);
-    } catch (e) {
-      setError(String(e));
+      const response = await fetch("/api/courses/load", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ path: coursePath }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Invalid Course Directory");
+      }
+
+      const newCourse = await response.json();
+      setCourses((prev) => [...prev, newCourse]);
+      setShowCreateForm(false);
+      setCoursePath("");
+    } catch (err: any) {
+      alert(err.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Manage your courses and study topics.</p>
+    <Layout>
+      <div className="space-y-8">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+          <h1 className="text-3xl font-bold text-white">Course Library</h1>
+          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+            {showCreateForm ? (
+              <>
+                <LayoutGrid className="mr-2 size-4" />
+                Library
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 size-4" />
+                Add Course
+              </>
+            )}
+          </Button>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Load Course</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Load a course</DialogTitle>
-              <DialogDescription>
-                Enter the path to a PrairieLearn-format course directory.
-              </DialogDescription>
-            </DialogHeader>
-            <Input
-              placeholder="/path/to/your/course"
-              value={loadPath}
-              onChange={(e) => setLoadPath(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLoad()}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleLoad} disabled={loading}>
-                {loading ? "Loading..." : "Load"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <Separator />
-
-      {/* Courses Grid */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
-        {courses.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground mb-4">No courses loaded yet.</p>
-              <Button variant="outline" onClick={() => setDialogOpen(true)}>
-                Load your first course
-              </Button>
-            </CardContent>
+        {showCreateForm ? (
+          <Card className="max-w-xl mx-auto">
+            <CardHeader>
+              <CardTitle>Sync PrairieLearn Course</CardTitle>
+              <CardDescription>
+                Enter the absolute path to a course directory containing
+                infoCourse.json
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleCreate}>
+              <CardContent>
+                <Label htmlFor="path">Absolute Directory Path</Label>
+                <Input
+                  id="path"
+                  placeholder="C:/Users/name/Documents/cs101"
+                  value={coursePath}
+                  onChange={(e) => setCoursePath(e.target.value)}
+                  required
+                />
+              </CardContent>
+              <CardFooter className="flex justify-between border-t border-slate-800 pt-6">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" isLoading={isLoading}>
+                  <Save className="mr-2 size-4" />
+                  Load Course
+                </Button>
+              </CardFooter>
+            </form>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((course) => {
-              const courseAssessments = assessments[course.id] ?? [];
-              return (
-                <Link key={course.id} to={`/courses/${course.id}`} className="no-underline">
-                  <Card className="h-full transition-shadow hover:shadow-md cursor-pointer">
-                    <CardHeader className="pb-3">
-                      <CardDescription className="font-mono text-xs">{course.name}</CardDescription>
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {courses.length > 0 ? (
+              courses.map((c) => (
+                <Link key={c.id} to={`/courses/${c.id}`}>
+                  <Card className="cursor-pointer hover:bg-slate-900/50 transition-colors">
+                    <CardHeader>
+                      <CardTitle className="truncate">
+                        {c.title || c.name}
+                      </CardTitle>
+                      <CardDescription className="text-[10px] font-mono">
+                        {c.container_tag}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {courseAssessments.length} assessment{courseAssessments.length !== 1 ? "s" : ""}
-                        </Badge>
-                      </div>
-                    </CardContent>
                   </Card>
                 </Link>
-              );
-            })}
-
-            {/* Add course card */}
-            <Card
-              className="flex h-full cursor-pointer items-center justify-center border-dashed transition-colors hover:border-primary hover:bg-accent"
-              onClick={() => setDialogOpen(true)}
-            >
-              <CardContent className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-                <span className="text-3xl">+</span>
-                <span className="text-sm font-medium">Load New Course</span>
-              </CardContent>
-            </Card>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-20 text-slate-500">
+                No courses loaded yet.
+              </div>
+            )}
           </div>
         )}
-      </section>
-    </div>
+      </div>
+    </Layout>
   );
 }
