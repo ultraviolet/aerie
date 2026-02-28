@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { api } from "@/api";
-import type { Assessment, Course, CourseDocument, GenerateStepEvent, Question } from "@/types";
+import type {
+  Assessment,
+  Course,
+  CourseDocument,
+  GenerateStepEvent,
+  Question,
+} from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +31,7 @@ import {
   X,
   Save,
   ArrowLeft,
+  Search,
 } from "lucide-react";
 
 export default function CoursePage() {
@@ -95,9 +102,8 @@ export default function CoursePage() {
     );
 
   return (
-    // Fixed height flex container for the whole page
     <div className="h-[100dvh] flex flex-col max-w-5xl mx-auto w-full pt-0 px-4 overflow-hidden">
-      {/* Top utility row: Back button & Simple Edit/Delete links */}
+      {/* Top utility row */}
       <div className="shrink-0 flex items-center justify-between pt-4 pb-2">
         <Link to="/">
           <Button
@@ -116,13 +122,13 @@ export default function CoursePage() {
                 setEditName(course.title);
                 setIsEditingName(true);
               }}
-              className="text-slate-500 hover:text-slate-900 hover:cursor-pointer flex items-center transition-colors"
+              className="text-slate-500 hover:text-slate-900 flex items-center transition-colors"
             >
               <Pencil className="size-3.5 mr-1.5" />
             </button>
             <button
               onClick={() => setIsConfirmingDelete(true)}
-              className="text-slate-500 hover:text-red-600 hover:cursor-pointer flex items-center transition-colors"
+              className="text-slate-500 hover:text-red-600 flex items-center transition-colors"
             >
               <Trash2 className="size-3.5 mr-1.5" />
             </button>
@@ -130,14 +136,12 @@ export default function CoursePage() {
         )}
       </div>
 
-      {/* Tabs Container now wraps the header so the Nav list can sit next to the Title */}
       <Tabs
         defaultValue="materials"
         className="flex flex-col flex-1 overflow-hidden"
       >
         <div className="shrink-0 mb-4 border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-2">
           <div className="flex-1 min-w-0 w-full">
-            {/* INLINE DELETE CONFIRMATION */}
             {isConfirmingDelete ? (
               <div className="flex flex-col gap-2 p-3 bg-red-50 border border-red-200 rounded-xl animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center gap-2 text-red-800 font-bold">
@@ -149,7 +153,6 @@ export default function CoursePage() {
                     size="sm"
                     onClick={handleDeleteCourse}
                     disabled={isProcessing}
-                    className="text-white"
                   >
                     {isProcessing ? "deleting..." : "yes, permanently delete"}
                   </Button>
@@ -158,85 +161,69 @@ export default function CoursePage() {
                     size="sm"
                     onClick={() => setIsConfirmingDelete(false)}
                     disabled={isProcessing}
-                    className="text-red-700 hover:text-red-800 hover:bg-red-100"
                   >
                     cancel
                   </Button>
                 </div>
               </div>
-            ) : // INLINE EDITING STATE
-            isEditingName ? (
+            ) : isEditingName ? (
               <div className="flex items-center gap-2 animate-in fade-in duration-200">
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="max-w-sm text-sm font-semibold h-10 bg-white shadow-inner"
+                  className="max-w-sm text-sm font-semibold h-10"
                   autoFocus
                   disabled={isProcessing}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") {
-                      setIsEditingName(false);
-                      setEditName(course.title);
-                    }
+                    if (e.key === "Escape") setIsEditingName(false);
                   }}
                 />
-                <div className="flex items-center gap-1">
-                  <Button
-                    onClick={handleSaveName}
-                    disabled={isProcessing}
-                    size="icon"
-                    className="h-10 w-10 font-bold shadow-md hover:scale-[1.03] active:scale-95 transition-all"
-                    title="Save"
-                  >
-                    <Save className="size-5" />
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setIsEditingName(false);
-                      setEditName(course.title);
-                    }}
-                    disabled={isProcessing}
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                    title="Cancel"
-                  >
-                    <X className="size-5" />
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleSaveName}
+                  disabled={isProcessing}
+                  size="icon"
+                  className="h-10 w-10"
+                >
+                  <Save className="size-5" />
+                </Button>
+                <Button
+                  onClick={() => setIsEditingName(false)}
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10"
+                >
+                  <X className="size-5" />
+                </Button>
               </div>
             ) : (
-              // DEFAULT HEADER STATE
               <h1 className="text-4xl font-black tracking-tight text-slate-900 truncate pr-4 uppercase">
                 {course.title}
               </h1>
             )}
           </div>
-          {/* Tabs Navigation (Flex-aligned with the header block) */}
-          <TabsList className="shrink-0 flex flex-row h-auto w-full sm:w-[450px] gap-2 p-1 bg-slate-200/60 border border-slate-300/50 shadow-inner rounded-xl">
+          <TabsList className="shrink-0 flex flex-row h-auto w-full sm:w-[450px] gap-2 p-1 bg-slate-200/60 border border-slate-300/50 shadow-inner rounded-lg">
             <TabsTrigger
               value="materials"
-              className="flex-1 flex items-center justify-center text-center py-3.5 px-2 text-base font-semibold rounded-lg data-[state=active]:shadow-md data-[state=active]:bg-white hover:scale-[1.03] hover:shadow-md active:scale-95 active:shadow-sm transition-all duration-200"
+              className="flex-1 py-3.5 text-base font-semibold"
             >
               materials
             </TabsTrigger>
             <TabsTrigger
               value="documents"
-              className="flex-1 flex items-center justify-center text-center py-3.5 px-2 text-base font-semibold rounded-lg data-[state=active]:shadow-md data-[state=active]:bg-white hover:scale-[1.03] hover:shadow-md active:scale-95 active:shadow-sm transition-all duration-200"
+              className="flex-1 py-3.5 text-base font-semibold"
             >
               documents
             </TabsTrigger>
             <TabsTrigger
               value="info"
-              className="flex-1 flex items-center justify-center text-center py-3.5 px-2 text-base font-semibold rounded-lg data-[state=active]:shadow-md data-[state=active]:bg-white hover:scale-[1.03] hover:shadow-md active:scale-95 active:shadow-sm transition-all duration-200"
+              className="flex-1 py-3.5 text-base font-semibold"
             >
               insights
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab Contents (Scrollable inner areas) */}
         <TabsContent
           value="materials"
           className="flex-col flex-1 overflow-hidden data-[state=active]:flex mt-0 focus-visible:outline-none"
@@ -278,6 +265,16 @@ function MaterialsTab({
 }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredMaterials = materials.filter((m) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      m.title.toLowerCase().includes(query) ||
+      m.type.toLowerCase().includes(query)
+    );
+  });
 
   if (isGenerating) {
     return (
@@ -295,45 +292,72 @@ function MaterialsTab({
 
   return (
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in duration-300">
-      {/* Toolbar: Toggle View & Add Button (FIXED) */}
-      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center p-1 bg-slate-100 rounded-lg w-fit border border-slate-200">
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            className={`h-8 px-3 ${viewMode === "grid" ? "shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
-            onClick={() => setViewMode("grid")}
-          >
-            <LayoutGrid className="size-4 mr-2" /> grid
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            className={`h-8 px-3 ${viewMode === "list" ? "shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
-            onClick={() => setViewMode("list")}
-          >
-            <List className="size-4 mr-2" /> list
-          </Button>
+      {/* Toolbar - Standard Flex Flow */}
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pl-1">
+        {/* Search Bar - Standard Div flow */}
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 shadow-sm flex-1 focus-within:ring-1 focus-within:ring-primary/50">
+          <Search className="size-4 text-slate-400 shrink-0" />
+          <input
+            type="text"
+            placeholder="search materials..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 py-2 text-sm bg-transparent outline-none border-none placeholder:text-slate-400"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
 
-        <Button
-          onClick={() => setIsGenerating(true)}
-          className="font-bold shadow-md"
-        >
-          <Plus className="size-4 mr-2" /> add new material
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200 h-10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200 
+          ${
+            viewMode === "grid"
+              ? "text-white shadow-sm bg-slate-900 hover:scale-[1.03] hover:bg-slate-900 hover:text-white"
+              : "text-slate-900 hover:bg-slate-100 hover:scale-[1.03]"
+          } active:scale-95`}
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200 
+          ${
+            viewMode === "list"
+              ? "text-white shadow-sm bg-slate-900 hover:scale-[1.03] hover:bg-slate-900 hover:text-white"
+              : "text-slate-900 hover:bg-slate-100 hover:scale-[1.03]"
+          } active:scale-95`}
+            >
+              <List className="size-4" />
+            </Button>
+          </div>
+          <Button
+            onClick={() => setIsGenerating(true)}
+            className="font-bold shadow-none whitespace-nowrap h-10"
+          >
+            <Plus className="size-4 mr-2" /> add new material
+          </Button>
+        </div>
       </div>
 
-      {/* Grid / List Content (SCROLLABLE) */}
       <div className="flex-1 overflow-y-auto pb-12 pr-2">
-        {materials.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <p className="text-muted-foreground text-sm font-medium mb-4">
-              no materials found for this course.
-            </p>
-            <Button variant="outline" onClick={() => setIsGenerating(true)}>
-              <Plus className="size-4 mr-2" /> Generate First Material
-            </Button>
+        {filteredMaterials.length === 0 ? (
+          <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-500">
+            {searchQuery
+              ? "no results found for your search."
+              : "no materials found for this course."}
           </div>
         ) : (
           <div
@@ -343,26 +367,25 @@ function MaterialsTab({
                 : "flex flex-col gap-3"
             }
           >
-            {materials.map((m) => (
+            {filteredMaterials.map((m) => (
               <Link
                 key={m.id}
                 to={`/assessments/${m.id}`}
                 className="no-underline block group"
               >
                 <Card
-                  className={`cursor-pointer transition-all hover:border-primary/30 hover:shadow-md ${viewMode === "grid" ? "h-full" : "flex flex-row items-center justify-between p-4"}`}
+                  className={`cursor-pointer transition-all duration-200 hover:translate-x-1 hover:border-primary/30 hover:shadow-md ${viewMode === "grid" ? "h-full" : "flex flex-row items-center justify-between p-4"}`}
                 >
                   {viewMode === "grid" ? (
                     <CardHeader>
                       <div className="flex items-center justify-between mb-2">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] border-slate-300 text-slate-500 uppercase font-mono tracking-tighter bg-slate-50 group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-colors"
+                        <CardDescription className="text-[12px] font-mono text-slate-500 tracking-tighter uppercase mt-1">
+                          {m.question_ids.length} question
+                          {m.question_ids.length !== 1 ? "s" : ""}
+                        </CardDescription>
+                        <span
+                          className={`text-[11px] font-black font-mono px-2 py-0.5 rounded-md border shadow-sm ${m.score_pct == null ? "bg-slate-100 text-slate-700 border-slate-200" : m.score_pct >= 100 ? "bg-green-100 text-green-700 border-green-200" : m.score_pct > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}
                         >
-                          {m.type}
-                        </Badge>
-                        {/* Score Badge (Grid View) */}
-                        <span className="text-[11px] font-black font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shadow-sm group-hover:border-primary/30 transition-colors">
                           {m.score_pct != null
                             ? `${Math.round(m.score_pct)}%`
                             : "NEW"}
@@ -372,32 +395,29 @@ function MaterialsTab({
                         {m.number ? `${m.number}. ` : ""}
                         {m.title}
                       </CardTitle>
-                      <CardDescription className="text-[10px] font-mono text-slate-500 tracking-tighter uppercase mt-1">
-                        {m.question_ids.length} question
-                        {m.question_ids.length !== 1 ? "s" : ""}
-                      </CardDescription>
                     </CardHeader>
                   ) : (
                     <>
                       <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
                         <Badge
                           variant="outline"
-                          className="text-[10px] border-slate-300 text-slate-500 uppercase font-mono tracking-tighter bg-slate-50 group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-colors shrink-0"
+                          className="text-[10px] font-mono shrink-0"
                         >
-                          {m.type}
+                          {m.question_ids.length} question
+                          {m.question_ids.length !== 1 ? "s" : ""}
                         </Badge>
-                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors text-sm sm:text-base truncate">
+                        <h3 className="font-bold text-slate-900 group-hover:text-primary truncate text-sm sm:text-base">
                           {m.number ? `${m.number}. ` : ""}
                           {m.title}
                         </h3>
                       </div>
                       <div className="flex items-center gap-4 shrink-0">
-                        <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest shrink-0 hidden sm:block">
-                          {m.question_ids.length} question
-                          {m.question_ids.length !== 1 ? "s" : ""}
+                        <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest hidden sm:block">
+                          {m.type}
                         </div>
-                        {/* Score Badge (List View) */}
-                        <span className="text-[12px] font-black font-mono px-2 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shadow-sm group-hover:border-primary/30 transition-colors">
+                        <span
+                          className={`text-[12px] font-black font-mono px-2 py-1 rounded-md border shadow-sm ${m.score_pct == null ? "bg-slate-100 text-slate-700 border-slate-200" : m.score_pct >= 100 ? "bg-green-100 text-green-700 border-green-200" : m.score_pct > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}
+                        >
                           {m.score_pct != null
                             ? `${Math.round(m.score_pct)}%`
                             : "NEW"}
@@ -414,6 +434,9 @@ function MaterialsTab({
     </div>
   );
 }
+
+// ... InfoTab, DocumentsTab, and GenerateMaterialView remain identical logic-wise ...
+
 /* ---------- Generate Material View ---------- */
 function GenerateMaterialView({
   courseId,
@@ -454,13 +477,19 @@ function GenerateMaterialView({
     setContextUsed([]);
     setProgressSteps([]);
     try {
-      for await (const { event, data } of api.generateQuestionsStream(courseId, {
-        prompt: prompt.trim(),
-        topics: selectedTopics.length > 0 ? selectedTopics : undefined,
-        num_questions: numQuestions,
-      })) {
+      for await (const { event, data } of api.generateQuestionsStream(
+        courseId,
+        {
+          prompt: prompt.trim(),
+          topics: selectedTopics.length > 0 ? selectedTopics : undefined,
+          num_questions: numQuestions,
+        },
+      )) {
         if (event === "step") {
-          setProgressSteps((prev) => [...prev, data as unknown as GenerateStepEvent]);
+          setProgressSteps((prev) => [
+            ...prev,
+            data as unknown as GenerateStepEvent,
+          ]);
         } else if (event === "result") {
           setGeneratedQuestions((data as { questions: Question[] }).questions);
           setContextUsed((data as { context_used: string[] }).context_used);
@@ -480,9 +509,9 @@ function GenerateMaterialView({
 
   return (
     <div className="space-y-6">
-      <Card className="border-primary/20 shadow-md">
-        <CardHeader className="">
-          <CardTitle className="text-xl flex items-center gap-2 font-bold">
+      <Card className="shadow-none border-none p-0 ">
+        <CardHeader className="px-0">
+          <CardTitle className="text-xl flex items-center gap-2 font-bold px-0">
             generate material
           </CardTitle>
           <CardDescription>
@@ -490,7 +519,7 @@ function GenerateMaterialView({
             use your uploaded documents to build it.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5 pt-0">
+        <CardContent className="space-y-5 pt-0 px-0">
           <div>
             <Textarea
               placeholder='e.g. "test me on unit 1", "quiz me on my weak areas", or "practice binary trees from chapter 3"'
@@ -559,9 +588,7 @@ function GenerateMaterialView({
                   <div
                     key={i}
                     className={`flex items-center gap-2.5 text-sm transition-all ${
-                      isLatest
-                        ? "text-slate-900 font-medium"
-                        : "text-slate-400"
+                      isLatest ? "text-slate-900 font-medium" : "text-slate-400"
                     }`}
                   >
                     {isLatest ? (
