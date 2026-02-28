@@ -24,24 +24,17 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { api } from "@/api";
-import type { Course } from "@/types";
-
-const RECENT_TOPICS = [
-  { topic: "NFA Sim", score: 88, warning: false },
-  { topic: "Fooling Sets", score: 42, warning: true },
-  { topic: "Pumping Lemma", score: 71, warning: false },
-  { topic: "CFG Grammars", score: 92, warning: false },
-  { topic: "Regex Parser", score: 31, warning: true },
-  { topic: "DFA Minimization", score: 65, warning: false },
-];
+import type { Course, RecentAssessment } from "@/types";
 
 export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [recentItems, setRecentItems] = useState<RecentAssessment[]>([]);
   const recentCardRef = useRef<HTMLDivElement>(null);
   const [recentLimit, setRecentLimit] = useState(4);
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
+    api.recentAssessments().then(setRecentItems).catch(console.error);
   }, []);
 
   // Updated ResizeObserver for the slimmer 48px items
@@ -154,13 +147,18 @@ export default function DashboardPage() {
               className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 min-h-0"
               style={{ height: "400px", paddingTop: 0 }}
             >
-              {RECENT_TOPICS.length > 0 ? (
-                RECENT_TOPICS.slice(0, recentLimit).map((item, index) => (
-                  <RecentItem
-                    key={index}
-                    topic={item.topic}
-                    score={item.score}
-                  />
+              {recentItems.length > 0 ? (
+                recentItems.slice(0, recentLimit).map((item) => (
+                  <Link
+                    key={item.assessment_id}
+                    to={`/assessments/${item.assessment_id}`}
+                    className="block no-underline"
+                  >
+                    <RecentItem
+                      topic={item.title}
+                      score={item.score_pct ?? 0}
+                    />
+                  </Link>
                 ))
               ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-30">
@@ -237,7 +235,7 @@ export default function DashboardPage() {
 function RecentItem({ topic, score }: { topic: string; score: number }) {
   // NICE ORANGE: Amber-500 (#F59E0B)
   // INVERSE OPACITY: Low score (0) = 1.0 opacity | High score (100) = 0.1 opacity
-  const scoreRatio = score / 100;
+  const scoreRatio = score / 110;
   const intensity = 1 - Math.pow(scoreRatio, 4);
 
   return (

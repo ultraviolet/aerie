@@ -31,7 +31,8 @@ function shuffle<T>(arr: T[]): T[] {
 /**
  * Renders only the interactive input elements extracted from PrairieLearn HTML (right panel).
  */
-export default function QuestionInputs({ html, answers, onAnswerChange, disabled }: Props) {
+export default function QuestionInputs({ html, answers: rawAnswers, onAnswerChange, disabled }: Props) {
+  const answers = rawAnswers ?? {};
   const inputs = useMemo(() => {
     const root = parseHtml(html);
     return root ? extractInputs(root) : [];

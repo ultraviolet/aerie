@@ -66,6 +66,7 @@ class AssessmentOut(BaseModel):
     number: str
     set_name: str
     question_ids: list[str]
+    score_pct: int | None = None
 
     model_config = {"from_attributes": True}
 

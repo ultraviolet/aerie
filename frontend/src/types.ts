@@ -26,6 +26,16 @@ export interface Assessment {
   number: string;
   set_name: string;
   question_ids: string[];
+  score_pct: number | null;
+}
+
+export interface RecentAssessment {
+  assessment_id: number;
+  course_id: number;
+  course_title: string;
+  title: string;
+  score_pct: number | null;
+  last_submitted_at: string | null;
 }
 
 export interface Question {
