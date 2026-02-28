@@ -65,7 +65,10 @@ export default function QuestionPage() {
       if (attempt.variant && attempt.submission) {
         setVariant(attempt.variant);
         setSubmission(attempt.submission);
-        setAnswers((attempt.submission.submitted_answers as Record<string, unknown>) ?? {});
+        setAnswers(
+          (attempt.submission.submitted_answers as Record<string, unknown>) ??
+            {},
+        );
       } else {
         // No previous attempt — create a new variant
         const v = await api.createVariant(Number(id));
@@ -422,23 +425,16 @@ export default function QuestionPage() {
                         }
                         className="w-full font-bold"
                       >
-                        Next Question &rarr;
+                        next question &rarr;
                       </Button>
                     ) : assessmentId && isLastQuestion ? (
                       <Button
                         onClick={() => navigate(`/assessments/${assessmentId}`)}
                         className="w-full font-bold"
                       >
-                        Finish Assessment
+                        finish assessment
                       </Button>
                     ) : null}
-                    <Button
-                      variant="outline"
-                      onClick={generateNewVariant}
-                      className="w-full"
-                    >
-                      Generate New Variant
-                    </Button>
                     <Button
                       variant="ghost"
                       onClick={handleGenerateSimilar}
@@ -446,8 +442,8 @@ export default function QuestionPage() {
                       className="w-full text-muted-foreground"
                     >
                       {generatingSimilar
-                        ? "Generating..."
-                        : "Generate Similar Question"}
+                        ? "generating..."
+                        : "generate similar question"}
                     </Button>
                   </>
                 )}
@@ -483,23 +479,33 @@ export default function QuestionPage() {
                         Visible Test Results
                       </p>
                       <div className="rounded-lg border divide-y divide-slate-100 text-sm">
-                        {((submission.feedback as any).test_results as Array<{
-                          index: number;
-                          passed: boolean;
-                          actual?: string;
-                          expected?: string;
-                          error?: string;
-                          description?: string;
-                        }>).map((r) => (
-                          <div key={r.index} className="px-3 py-2 flex items-start gap-2">
-                            <span className={`font-mono text-xs font-bold ${r.passed ? "text-green-500" : "text-red-500"}`}>
+                        {(
+                          (submission.feedback as any).test_results as Array<{
+                            index: number;
+                            passed: boolean;
+                            actual?: string;
+                            expected?: string;
+                            error?: string;
+                            description?: string;
+                          }>
+                        ).map((r) => (
+                          <div
+                            key={r.index}
+                            className="px-3 py-2 flex items-start gap-2"
+                          >
+                            <span
+                              className={`font-mono text-xs font-bold ${r.passed ? "text-green-500" : "text-red-500"}`}
+                            >
                               {r.passed ? "PASS" : "FAIL"}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <span className="font-medium">{r.description || `Test ${r.index + 1}`}</span>
+                              <span className="font-medium">
+                                {r.description || `Test ${r.index + 1}`}
+                              </span>
                               {!r.passed && (
                                 <div className="font-mono text-xs mt-1 text-red-600">
-                                  {r.error || `Expected ${r.expected}, got ${r.actual}`}
+                                  {r.error ||
+                                    `Expected ${r.expected}, got ${r.actual}`}
                                 </div>
                               )}
                             </div>
