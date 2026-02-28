@@ -163,7 +163,7 @@ def _process_insights_with_gemini(raw: dict) -> dict:
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3-flash-preview",
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 temperature=0.2,

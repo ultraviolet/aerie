@@ -17,6 +17,7 @@ from google import genai
 from sqlalchemy.orm import Session
 
 from app.models import Assessment, Course, Question
+from app.services import supermemory_service as sm
 from app.services.supermemory_service import search as sm_search
 
 log = logging.getLogger(__name__)
@@ -457,6 +458,69 @@ def _retrieve_context(queries: list[str], container_tag: str, limit_per_query: i
     return chunks
 
 
+def _understand_prompt(prompt: str, topics: list[str], course_topics: list[str]) -> dict:
+    """Analyze the user's natural-language prompt to determine material scope and weakness focus."""
+    client = _get_gemini_client()
+    topic_list = ", ".join(f'"{t}"' for t in course_topics) if course_topics else "none yet"
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=f"User prompt: {prompt}\nSelected topics filter: {topics}",
+        config=genai.types.GenerateContentConfig(
+            system_instruction=(
+                "You analyze educational question-generation requests. "
+                "The user is asking an AI to generate practice questions from their course materials.\n"
+                "Determine:\n"
+                "1. material_query: What specific course content to search for "
+                "(e.g. 'unit 1', 'chapter 3', 'binary trees'). null if no specific material referenced.\n"
+                "2. focus_weaknesses: true if the user wants to practice weak areas, mistakes, or struggles.\n"
+                "3. weakness_scope: If focusing on weaknesses, scope it (e.g. 'unit 1') or null for all.\n"
+                "4. refined_prompt: A clearer version of the request for the question generator.\n\n"
+                f"The course has these existing topics: [{topic_list}]\n"
+                "Return ONLY valid JSON with keys: material_query, focus_weaknesses, weakness_scope, refined_prompt."
+            ),
+            temperature=0.1,
+            max_output_tokens=512,
+            response_mime_type="application/json",
+        ),
+    )
+    try:
+        result = json.loads(response.text.strip())
+        log.info("Prompt understanding: %r", result)
+        return result
+    except (json.JSONDecodeError, TypeError):
+        log.warning("Prompt understanding failed to parse, using defaults")
+        return {
+            "material_query": None,
+            "focus_weaknesses": False,
+            "weakness_scope": None,
+            "refined_prompt": prompt,
+        }
+
+
+def _fetch_weakness_context(user_id: int, course_id: int, scope: str | None = None) -> str:
+    """Retrieve user weakness data from Supermemory and format as generation context."""
+    profile = sm.get_user_profile(user_id, course_id)
+
+    query = "student answered incorrectly struggled weak"
+    if scope:
+        query += f" {scope}"
+    weakness_memories = sm.search_user_memories(query, user_id, course_id, limit=10)
+
+    if not weakness_memories and not profile.get("dynamic"):
+        log.info("No weakness data found for user %d course %d", user_id, course_id)
+        return ""
+
+    lines = ["STUDENT WEAKNESS DATA (generate questions targeting these areas):"]
+    for fact in (profile.get("dynamic") or [])[:5]:
+        lines.append(f"- Profile: {fact}")
+    for mem in weakness_memories:
+        lines.append(f"- {mem}")
+
+    context = "\n".join(lines)
+    log.info("Weakness context: %d lines for user %d course %d", len(lines) - 1, user_id, course_id)
+    return context
+
+
 def _fix_correct_answers(question_html: str, correct_answers: dict) -> dict:
     """Ensure correct_answers values match the actual element content in the HTML.
 
@@ -748,6 +812,216 @@ def generate_questions(
     return questions, context_chunks
 
 
+def generate_questions_stream(
+    prompt: str,
+    course: Course,
+    db: Session,
+    user_id: int,
+    topics: list[str] | None = None,
+    num_questions: int = 1,
+):
+    """Generator that yields (event_type, data) tuples as it progresses through question generation.
+
+    Same logic as generate_questions() but wrapped in a generator for SSE streaming.
+    """
+    from app.schemas import QuestionOut
+
+    topics = topics or []
+    topic_hint = ", ".join(topics) if topics else ""
+
+    # Step 0: Understand the prompt
+    yield ("step", {"step": "understanding", "message": "Understanding your request..."})
+    understood = _understand_prompt(prompt, topics, course.topics)
+    effective_prompt = understood.get("refined_prompt") or prompt
+    focus_weaknesses = understood.get("focus_weaknesses", False)
+    material_query = understood.get("material_query")
+    weakness_scope = understood.get("weakness_scope")
+
+    summary = effective_prompt[:80]
+    if focus_weaknesses:
+        summary = f"focusing on weak areas — {summary}"
+    yield ("step", {"step": "understood", "message": summary})
+
+    # Step 1: Expand queries + RAG retrieval
+    yield ("step", {"step": "searching", "message": "Searching course materials..."})
+    context_chunks: list[str] = []
+    if course.container_tag:
+        try:
+            search_prompt = material_query or effective_prompt
+            queries = _expand_queries(search_prompt, topic_hint)
+            context_chunks = _retrieve_context(queries, course.container_tag)
+            log.info("RAG: %d chunks from %d queries", len(context_chunks), len(queries))
+        except Exception:
+            log.exception("RAG retrieval failed for course %s", course.id)
+    yield ("step", {"step": "searched", "message": f"Found {len(context_chunks)} relevant passages"})
+
+    # Step 2: Fetch weakness data if needed
+    weakness_context = ""
+    if focus_weaknesses:
+        yield ("step", {"step": "analyzing", "message": "Analyzing your performance history..."})
+        weakness_context = _fetch_weakness_context(user_id, course.id, weakness_scope)
+        if weakness_context:
+            yield ("step", {"step": "analyzed", "message": "Identified focus areas from your history"})
+        else:
+            yield ("step", {"step": "analyzed", "message": "No performance history yet — generating general questions"})
+
+    # Step 3: Pass 1 — Type selection
+    yield ("step", {"step": "selecting_types", "message": "Selecting question types..."})
+    context_summary = " | ".join(c[:120] for c in context_chunks[:3]) if context_chunks else ""
+    try:
+        selected_types = _select_question_types(effective_prompt, topic_hint, num_questions, context_summary)
+    except Exception:
+        log.exception("Type selection failed, falling back to all types")
+        selected_types = ALL_TYPE_NAMES
+    yield ("step", {"step": "types_selected", "message": f"Chose {len(selected_types)} question format{'s' if len(selected_types) != 1 else ''}"})
+
+    # Step 4: Build prompts and generate (Pass 2)
+    yield ("step", {"step": "generating", "message": "Generating questions..."})
+    existing_topics = course.topics
+    system_prompt = _build_system_prompt(selected_types, existing_topics)
+
+    # Build user prompt with optional weakness context
+    context_section = ""
+    if context_chunks:
+        context_section = (
+            "COURSE MATERIAL CONTEXT (use this to generate the questions):\n"
+            + "\n---\n".join(context_chunks)
+            + "\n\n"
+        )
+
+    user_prompt = ""
+    if weakness_context:
+        user_prompt += weakness_context + "\n\n"
+    user_prompt += f"{context_section}USER REQUEST: {effective_prompt}"
+    if topics:
+        user_prompt += f"\nFOCUS ON TOPICS: {', '.join(topics)}"
+    if num_questions > 1:
+        user_prompt += f"\nNUMBER OF QUESTIONS: {num_questions} (return a diverse set covering different aspects of the material)"
+
+    max_tokens = min(4096 * num_questions, 65536)
+    client = _get_gemini_client()
+    response = client.models.generate_content(
+        model="gemini-3-pro-preview",
+        contents=user_prompt,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.7,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json",
+        ),
+    )
+
+    # Check for truncation
+    if (
+        response.candidates
+        and response.candidates[0].finish_reason
+        and str(response.candidates[0].finish_reason) not in ("STOP", "FinishReason.STOP", "1")
+    ):
+        raise ValueError("Gemini response was truncated — try fewer questions or a simpler prompt")
+
+    raw = response.text.strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise ValueError("Gemini returned invalid JSON — the response may have been truncated")
+
+    if "questions" in data and isinstance(data["questions"], list):
+        items = data["questions"]
+    else:
+        items = [data]
+
+    # Step 5: Fix answers + save
+    yield ("step", {"step": "finalizing", "message": f"Validating {len(items)} question{'s' if len(items) != 1 else ''}..."})
+    for item in items:
+        item["correct_answers"] = _fix_correct_answers(
+            item.get("question_html", ""),
+            item.get("correct_answers", {}),
+        )
+
+    # Create assessment
+    if len(topics) > 3:
+        assessment_title = f"{', '.join(topics[:3])} + {len(topics) - 3} more"
+    elif topics:
+        assessment_title = ", ".join(topics)
+    else:
+        assessment_title = effective_prompt[:60].strip() or "AI Generated Quiz"
+    tid = f"gen_{uuid.uuid4().hex[:8]}"
+
+    assessment = Assessment(
+        course_id=course.id,
+        tid=tid,
+        title=assessment_title,
+        type="Practice",
+    )
+    assessment.question_ids = []
+    db.add(assessment)
+    db.flush()
+
+    # Create Question rows
+    questions: list[Question] = []
+    current_ids: list[str] = []
+    all_new_topics: set[str] = set()
+
+    for item in items:
+        title = item.get("title", "Generated Question")
+        tags = item.get("tags", ["ai-generated"])
+        question_html = item.get("question_html", "")
+        correct_answers = item.get("correct_answers", {})
+
+        item_topics = item.get("topics", [])
+        if not item_topics:
+            legacy_topic = item.get("topic", topic_hint)
+            item_topics = [legacy_topic] if legacy_topic else []
+        if isinstance(item_topics, str):
+            item_topics = [item_topics]
+
+        q_topic = item_topics[0] if item_topics else topic_hint
+        all_new_topics.update(item_topics)
+
+        if not question_html:
+            log.warning("Skipping question with empty question_html: %s", title)
+            continue
+
+        qid = f"gen_{uuid.uuid4().hex[:8]}"
+        question = Question(
+            course_id=course.id,
+            qid=qid,
+            uuid=str(uuid.uuid4()),
+            title=title,
+            topic=q_topic,
+            question_html=question_html,
+            has_server_py=False,
+            single_variant=True,
+            directory="",
+        )
+        question.tags = tags if isinstance(tags, list) else [str(tags)]
+        question.stored_correct_answers = correct_answers
+        db.add(question)
+        db.flush()
+        current_ids.append(qid)
+        questions.append(question)
+
+    assessment.question_ids = current_ids
+
+    # Update course topics
+    existing_set = set(existing_topics)
+    new_topics_list = [t for t in all_new_topics if t and t not in existing_set]
+    if new_topics_list:
+        course.topics = existing_topics + new_topics_list
+
+    db.flush()
+
+    # Final result
+    questions_out = [QuestionOut.model_validate(q) for q in questions]
+    seen: set[str] = set()
+    unique_context = [c for c in context_chunks if c not in seen and not seen.add(c)]  # type: ignore[func-returns-value]
+
+    yield ("result", {
+        "questions": [q.model_dump() for q in questions_out],
+        "context_used": unique_context[:5],
+    })
+
+
 def generate_similar_question(
     original_question: Question,
     course: Course,
@@ -819,7 +1093,7 @@ def generate_similar_question(
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
             temperature=0.8,
-            max_output_tokens=4096,
+            max_output_tokens=8192,
             response_mime_type="application/json",
         ),
     )
@@ -830,7 +1104,9 @@ def generate_similar_question(
         and response.candidates[0].finish_reason
         and str(response.candidates[0].finish_reason) not in ("STOP", "FinishReason.STOP", "1")
     ):
-        raise ValueError("Gemini response was truncated")
+        reason = response.candidates[0].finish_reason
+        log.error("Similar question Gemini truncated: finish_reason=%s", reason)
+        raise ValueError(f"Gemini response was truncated (reason={reason})")
 
     raw = response.text.strip()
     try:
