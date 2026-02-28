@@ -2,7 +2,13 @@ import { useState } from "react";
 import { api } from "@/api";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,9 +28,10 @@ export default function AuthPage() {
     setLoading(true);
     setError("");
     try {
-      const res = mode === "login"
-        ? await api.login(username.trim(), password)
-        : await api.register(username.trim(), password);
+      const res =
+        mode === "login"
+          ? await api.login(username.trim(), password)
+          : await api.register(username.trim(), password);
       login(res.token, res.user);
     } catch (e) {
       const msg = String(e);
@@ -44,73 +51,83 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">prAIrie</CardTitle>
-          <CardDescription>PrairieLearn-inspired grading environment</CardDescription>
+          <CardTitle className="text-3xl font-bold tracking-tight">
+            prAIrie
+          </CardTitle>
+          <CardDescription>AI-powered self-study platform</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Log In</TabsTrigger>
-              <TabsTrigger value="register">Sign Up</TabsTrigger>
+              <TabsTrigger value="login">Log in</TabsTrigger>
+              <TabsTrigger value="register">Sign up</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="login-user">Username</Label>
                 <Input
                   id="login-user"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit("login")}
-                  placeholder="username"
+                  placeholder="Username"
                   autoComplete="username"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-pass">Password</Label>
                 <Input
                   id="login-pass"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit("login")}
-                  placeholder="password"
+                  placeholder="Password"
                   autoComplete="current-password"
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="w-full" onClick={() => handleSubmit("login")} disabled={loading}>
-                {loading ? "Logging in..." : "Log In"}
+              <Button
+                className="w-full"
+                onClick={() => handleSubmit("login")}
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Log in"}
               </Button>
             </TabsContent>
 
             <TabsContent value="register" className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="reg-user">Username</Label>
                 <Input
                   id="reg-user"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSubmit("register")}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleSubmit("register")
+                  }
                   placeholder="Choose a username"
                   autoComplete="username"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg-pass">Password</Label>
                 <Input
                   id="reg-pass"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSubmit("register")}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleSubmit("register")
+                  }
                   placeholder="Choose a password"
                   autoComplete="new-password"
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="w-full" onClick={() => handleSubmit("register")} disabled={loading}>
-                {loading ? "Creating account..." : "Sign Up"}
+              <Button
+                className="w-full"
+                onClick={() => handleSubmit("register")}
+                disabled={loading}
+              >
+                {loading ? "Creating account..." : "Sign up"}
               </Button>
             </TabsContent>
           </Tabs>

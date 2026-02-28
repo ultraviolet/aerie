@@ -26,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
         <Link
           to="/"
-          className="text-lg font-bold tracking-tight text-slate-900 no-underline"
+          className="text-xl font-bold tracking-tight text-slate-900 no-underline"
         >
           prAIrie
         </Link>
@@ -35,7 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="sm"
             onClick={logout}
-            className="font-medium text-slate-900 hover:bg-transparent hover:text-slate-600"
+            className="text-md text-slate-900 hover:bg-transparent hover:text-slate-600"
           >
             Log out
           </Button>

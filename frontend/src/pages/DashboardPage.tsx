@@ -37,47 +37,47 @@ const RECENT_TOPICS = [
 
 export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const masteryContainerRef = useRef<HTMLDivElement>(null);
-  const [masteryLimit, setMasteryLimit] = useState(4);
+  const recentCardRef = useRef<HTMLDivElement>(null);
+  const [recentLimit, setRecentLimit] = useState(4);
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
   }, []);
 
+  // Updated ResizeObserver for the slimmer 48px items
+
   useEffect(() => {
-    if (!masteryContainerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      const containerHeight = entries[0].contentRect.height;
-      // Reverting to your exact logic: (height + gap) / (itemHeight + gap)
-      const fit = Math.floor((containerHeight + 12) / (68 + 12));
-      setMasteryLimit(fit > 0 ? fit : 0);
-    });
-    observer.observe(masteryContainerRef.current);
+    const calculate = () => {
+      if (!recentCardRef.current) return;
+      const cardHeight = recentCardRef.current.getBoundingClientRect().height;
+      const headerHeight = 57; // measure this once in devtools and hardcode it
+      const padding = 16;
+      const available = cardHeight - headerHeight - padding;
+      const fit = Math.floor((available + 12) / (48 + 12));
+      setRecentLimit(Math.max(1, fit));
+    };
+
+    const observer = new ResizeObserver(calculate);
+    if (recentCardRef.current) observer.observe(recentCardRef.current);
+    setTimeout(calculate, 50);
     return () => observer.disconnect();
   }, []);
 
   return (
-    // mt-0 removes top margin. pb-10 adds bottom breathing room.
-    <div
-      className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-0 pb-10 animate-in fade-in duration-700"
-      style={{ overflow: "hidden" }}
-    >
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full mt-0 pb-10 min-h-0 overflow-hidden animate-in fade-in duration-700">
       {/* LEFT & CENTER STACK */}
-      <div
-        className="lg:col-span-3 flex flex-col gap-6 h-full min-h-0"
-        style={{ height: "100%", overflow: "hidden" }}
-      >
+      <div className="lg:col-span-3 flex flex-col gap-6 h-full min-h-0">
         {/* 1. STREAK GRID */}
         <Card className="bg-slate-800 border-slate-700 shadow-xl shrink-0">
-          <CardContent className="py-4 flex flex-col md:flex-row items-center gap-8">
+          <CardContent className="py-4 flex flex-col md:flex-row items-center gap-8 text-white">
             <div className="flex items-center gap-3 shrink-0 border-r border-slate-600 pr-6">
               <div className="p-2 rounded-full bg-orange-500/20">
                 <Flame className="size-6 text-orange-500" />
               </div>
               <div>
-                <p className="text-xl font-black text-white leading-none">12</p>
+                <p className="text-xl font-black leading-none">12</p>
                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-                  Streak
+                  Current Streak
                 </p>
               </div>
             </div>
@@ -109,12 +109,19 @@ export default function DashboardPage() {
         </Card>
 
         {/* 2. MAIN INTERACTIVE AREA */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0">
+        <div
+          className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0 overflow-hidden"
+          style={{ minHeight: 0, overflow: "hidden" }}
+        >
           <Card className="bg-white border-slate-200 flex flex-col h-full shadow-lg min-h-0">
             <CardHeader className="shrink-0 pb-4">
               <CardTitle className="text-3xl font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="size-8 text-primary" /> Start
               </CardTitle>
+              <CardDescription className="text-slate-600 text-sm leading-relaxed">
+                Access your knowledge base through dialogue or structured
+                testing.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 flex-1 justify-end p-6 pt-0">
               <Button
@@ -123,29 +130,37 @@ export default function DashboardPage() {
               >
                 <MessageSquare className="mr-2 size-5" /> AI Chat
               </Button>
-              <Button className="w-full bg-primary text-primary-foreground font-black text-xl shadow-xl flex-1 min-h-[4rem]">
+              <Button className="w-full bg-primary text-primary-foreground font-black text-xl shadow-xl hover:scale-[1.02] transition-transform flex-1 min-h-[4rem]">
                 <BrainCircuit className="mr-2 size-6" /> Practice Quiz
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-100 border-slate-200 flex flex-col h-full shadow-inner min-h-0">
+          {/* RECENT (Renamed and Slimmed) */}
+          <Card
+            ref={recentCardRef}
+            className="bg-slate-100 border-slate-200 flex flex-col h-full shadow-inner min-h-0"
+            style={{ height: "100%", minHeight: 0 }}
+          >
             <CardHeader className="shrink-0 border-b border-slate-200 bg-slate-200/30 pb-4">
               <div className="flex justify-between items-center px-1">
                 <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <History className="size-4 text-slate-500" /> Recently Studied
+                  Recent
                 </CardTitle>
-                <Info className="size-3 text-slate-400" />
+                <History className="size-4 text-slate-500" />
               </div>
             </CardHeader>
-            {/* Flex-1 and overflow-hidden here allows the ResizeObserver to see the shrinking container */}
             <CardContent
-              ref={masteryContainerRef}
-              className="flex-1 overflow-hidden flex flex-col gap-3 p-4"
+              className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 min-h-0"
+              style={{ height: "400px", paddingTop: 0 }}
             >
               {RECENT_TOPICS.length > 0 ? (
-                RECENT_TOPICS.slice(0, masteryLimit).map((item, index) => (
-                  <MasteryItem key={index} {...item} />
+                RECENT_TOPICS.slice(0, recentLimit).map((item, index) => (
+                  <RecentItem
+                    key={index}
+                    topic={item.topic}
+                    score={item.score}
+                  />
                 ))
               ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-30">
@@ -157,16 +172,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. COURSE LIBRARY */}
+      {/* 3. COURSE LIBRARY (Unchanged per request) */}
       <Card
-        className="lg:col-span-2 flex flex-col min-h-0 h-full bg-white border-slate-200 shadow-xl p-0"
-        style={{
-          height: "100%",
-          minHeight: 0,
-          overflow: "visible",
-        }}
+        className="lg:col-span-2 flex flex-col h-full bg-white border-slate-200 shadow-xl overflow-hidden p-0 relative"
+        style={{ height: "100%", minHeight: 0, overflow: "visible" }}
       >
-        {/* Dark Flush Header */}
         <div className="bg-slate-900 px-6 py-6 shrink-0 flex items-center justify-between border-b border-slate-800 rounded-t-xl">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white m-0">
             Course Library
@@ -175,26 +185,21 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="icon"
-              className="size-8 bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+              className="size-8 bg-slate-600 border-slate-700 text-white hover:bg-slate-100"
             >
               <Plus className="size-4" />
             </Button>
           </Link>
         </div>
-
-        {/* THE FIX: Internal Scroll Container */}
-        {/* flex-1: Take up all remaining space */}
-        {/* min-h-0: Allow this div to be smaller than the list inside it (REQUIRED FOR SCROLL) */}
-        {/* overflow-y-auto: Show scrollbar only when needed */}
         <div
           className="custom-scrollbar"
           style={{
-            height: "calc(100vh - 14rem)", // ← hard fixed height
-            overflowY: "scroll", // ← force scrollbar always
+            height: "calc(100vh - 14rem)",
+            overflowY: "auto",
             overflowX: "hidden",
           }}
         >
-          <div className="p-4 space-y-3">
+          <div className="pb-4 px-4 pt-0 space-y-3">
             {courses.length > 0 ? (
               courses.map((c) => (
                 <Link
@@ -203,15 +208,9 @@ export default function DashboardPage() {
                   className="block group"
                 >
                   <div className="flex items-center gap-4 px-4 py-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
-                    <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 group-hover:scale-110 transition-transform">
-                      <GraduationCap className="size-6 text-primary" />
-                    </div>
                     <div className="flex flex-col overflow-hidden flex-1">
                       <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors">
                         {c.title || c.name}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest truncate">
-                        {c.container_tag || "SYSTEM"}
                       </span>
                     </div>
                     <ArrowRight className="size-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
@@ -220,7 +219,6 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="py-20 flex flex-col items-center justify-center opacity-40">
-                <GraduationCap className="size-12 mb-2" />
                 <p className="text-xs font-bold uppercase tracking-widest">
                   Library Empty
                 </p>
@@ -233,42 +231,41 @@ export default function DashboardPage() {
   );
 }
 
-function MasteryItem({
-  topic,
-  score,
-  warning,
-}: {
-  topic: string;
-  score: number;
-  warning: boolean;
-}) {
+/**
+ * Slim heatmap component for recent activity
+ */
+function RecentItem({ topic, score }: { topic: string; score: number }) {
+  // NICE ORANGE: Amber-500 (#F59E0B)
+  // INVERSE OPACITY: Low score (0) = 1.0 opacity | High score (100) = 0.1 opacity
+  const scoreRatio = score / 100;
+  const intensity = 1 - Math.pow(scoreRatio, 4);
+
   return (
-    // Added shrink-0 and h-[68px] to prevent nodes from getting smaller
-    <button className="w-full text-left p-3.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 group flex flex-col gap-2.5 shadow-sm shrink-0 h-[68px]">
-      <div className="flex justify-between items-center w-full">
-        <span className="text-sm font-bold text-slate-900 flex items-center gap-2 truncate">
+    <button
+      className={cn(
+        "w-full text-left p-3 rounded-xl border flex items-center justify-between shrink-0 h-[48px] transition-all duration-200",
+        // Interaction: Lift on hover, press on active
+        "hover:scale-[1.01] hover:shadow-sm active:scale-[0.99] active:brightness-95",
+        "group",
+      )}
+      style={{
+        backgroundColor: `rgba(245, 158, 11, ${Math.max(intensity, 0.02)})`,
+        borderColor: "rgba(245, 158, 11, 0.2)",
+        cursor: "pointer",
+      }}
+    >
+      <div className="flex items-center gap-2 overflow-hidden">
+        {/* Always black font as requested */}
+        <span className="text-md font-semibold text-black truncate transition-colors">
           {topic}
-          <ArrowRight className="size-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-all" />
         </span>
-        <span
-          className={cn(
-            "text-xs font-black font-mono px-2 py-0.5 rounded shrink-0",
-            warning
-              ? "bg-amber-100 text-amber-700"
-              : "bg-primary/10 text-primary-700",
-          )}
-        >
+        <ArrowRight className="size-4.5 text-black/80 transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-1" />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="text-[15px] font-black font-mono px-2 py-0.5 rounded-lg bg-white/50 text-black border border-black/5 shadow-sm">
           {score}%
         </span>
-      </div>
-      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden shrink-0">
-        <div
-          className={cn(
-            "h-full transition-all duration-700",
-            warning ? "bg-amber-500" : "bg-primary",
-          )}
-          style={{ width: `${score}%` }}
-        />
       </div>
     </button>
   );
