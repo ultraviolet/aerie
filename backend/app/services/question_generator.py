@@ -260,10 +260,12 @@ AVAILABLE QUESTION TYPES (use ONLY these):
 {type_specs}
 
 When asked for ONE question, return a JSON object:
-{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}
+{{"assessment_title": "Short Assessment Title", "title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}
 
-When asked for MULTIPLE questions, return a JSON object with a "questions" array:
-{{"questions": [{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}, ...]}}
+When asked for MULTIPLE questions, return a JSON object with a "questions" array AND an "assessment_title":
+{{"assessment_title": "Short Assessment Title", "questions": [{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}, ...]}}
+
+The "assessment_title" should be a short, descriptive name for the overall assessment (3-8 words). Do NOT just echo the user's prompt — summarize the topic being tested. Examples: "Linear Algebra Fundamentals", "Basic Arithmetic Practice", "Python Data Structures Quiz".
 """
 
 
@@ -341,11 +343,11 @@ Return ONLY a JSON array of type names, e.g. ["pl-multiple-choice", "pl-matching
 """
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-pro-preview",
+        model="gemini-3.1-pro-preview",
         contents=selection_prompt,
         config=genai.types.GenerateContentConfig(
             temperature=0.2,
-            max_output_tokens=256,
+            max_output_tokens=1024,
             response_mime_type="application/json",
         ),
     )
@@ -400,7 +402,7 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
 
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-pro-preview",
+        model="gemini-3.1-pro-preview",
         contents=full_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=(
@@ -414,7 +416,7 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
                 "Return ONLY a JSON array of strings, e.g. [\"query1\", \"query2\", ...]"
             ),
             temperature=0.3,
-            max_output_tokens=512,
+            max_output_tokens=1024,
             response_mime_type="application/json",
         ),
     )
@@ -480,7 +482,7 @@ def _understand_prompt(prompt: str, topics: list[str], course_topics: list[str])
                 "Return ONLY valid JSON with keys: material_query, focus_weaknesses, weakness_scope, refined_prompt."
             ),
             temperature=0.1,
-            max_output_tokens=512,
+            max_output_tokens=1024,
             response_mime_type="application/json",
         ),
     )
@@ -713,7 +715,7 @@ def generate_questions(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-pro-preview",
+        model="gemini-3.1-pro-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -740,6 +742,7 @@ def generate_questions(
         raise ValueError("Gemini returned invalid JSON — the response may have been truncated")
 
     # Normalize: single question vs batch
+    gemini_title = data.get("assessment_title", "")
     if "questions" in data and isinstance(data["questions"], list):
         items = data["questions"]
     else:
@@ -759,7 +762,9 @@ def generate_questions(
         )
 
     # 6. Create a new assessment for this batch
-    if len(topics) > 3:
+    if gemini_title:
+        assessment_title = gemini_title[:80]
+    elif len(topics) > 3:
         assessment_title = f"{', '.join(topics[:3])} + {len(topics) - 3} more"
     elif topics:
         assessment_title = ", ".join(topics)
@@ -927,7 +932,7 @@ def generate_questions_stream(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-pro-preview",
+        model="gemini-3.1-pro-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -951,6 +956,7 @@ def generate_questions_stream(
     except json.JSONDecodeError:
         raise ValueError("Gemini returned invalid JSON — the response may have been truncated")
 
+    gemini_title = data.get("assessment_title", "")
     if "questions" in data and isinstance(data["questions"], list):
         items = data["questions"]
     else:
@@ -969,7 +975,9 @@ def generate_questions_stream(
         )
 
     # Create assessment
-    if len(topics) > 3:
+    if gemini_title:
+        assessment_title = gemini_title[:80]
+    elif len(topics) > 3:
         assessment_title = f"{', '.join(topics[:3])} + {len(topics) - 3} more"
     elif topics:
         assessment_title = ", ".join(topics)
@@ -1118,7 +1126,7 @@ def generate_similar_question(
     # 5. Single Gemini call
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-pro-preview",
+        model="gemini-3.1-pro-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
