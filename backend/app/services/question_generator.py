@@ -826,7 +826,7 @@ def generate_questions(
         db.add(question)
         db.flush()
 
-        current_ids.append(qid)
+        current_ids.append(question.id)
         questions.append(question)
 
     assessment.question_ids = current_ids
@@ -1036,7 +1036,7 @@ def generate_questions_stream(
         question.stored_correct_answers = correct_answers
         db.add(question)
         db.flush()
-        current_ids.append(qid)
+        current_ids.append(question.id)
         questions.append(question)
 
     assessment.question_ids = current_ids

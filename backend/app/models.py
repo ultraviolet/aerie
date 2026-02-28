@@ -61,11 +61,11 @@ class Assessment(Base):
     course: Mapped["Course"] = relationship(back_populates="assessments")
 
     @property
-    def question_ids(self) -> list[str]:
+    def question_ids(self) -> list[int]:
         return json.loads(self._question_ids)
 
     @question_ids.setter
-    def question_ids(self, value: list[str]):
+    def question_ids(self, value: list[int]):
         self._question_ids = json.dumps(value)
 
 

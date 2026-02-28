@@ -147,7 +147,7 @@ def load_course(db: Session, course_path: str, user_id: int) -> Course:
             title="All Questions",
             type="Homework",
         )
-        a.question_ids = [q.qid for q in question_map.values()]
+        a.question_ids = [q.id for q in question_map.values()]
         db.add(a)
 
     db.commit()
@@ -200,16 +200,19 @@ def _load_assessment(
         return None
 
     info = _read_json(info_path)
-    qids: list[str] = []
+    raw_qids: list[str] = []
 
     # Extract question IDs from zones
     for zone in info.get("zones", []):
         for q_entry in zone.get("questions", []):
             if "id" in q_entry:
-                qids.append(q_entry["id"])
+                raw_qids.append(q_entry["id"])
             for alt in q_entry.get("alternatives", []):
                 if "id" in alt:
-                    qids.append(alt["id"])
+                    raw_qids.append(alt["id"])
+
+    # Convert qid strings to database PKs via question_map
+    db_ids = [question_map[qid].id for qid in raw_qids if qid in question_map]
 
     a = Assessment(
         course_id=course_id,
@@ -219,7 +222,7 @@ def _load_assessment(
         number=str(info.get("number", "")),
         set_name=info.get("set", ""),
     )
-    a.question_ids = qids
+    a.question_ids = db_ids
     db.add(a)
     db.flush()
     return a

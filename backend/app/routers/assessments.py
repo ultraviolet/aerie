@@ -19,7 +19,7 @@ def _assessment_score(assessment: Assessment, user_id: int, db: Session) -> int 
 
     questions = (
         db.query(Question)
-        .filter(Question.course_id == assessment.course_id, Question.qid.in_(qids))
+        .filter(Question.id.in_(qids))
         .all()
     )
     if not questions:
@@ -50,7 +50,7 @@ def _last_submission_time(assessment: Assessment, user_id: int, db: Session):
     q_ids = [
         r[0]
         for r in db.query(Question.id)
-        .filter(Question.course_id == assessment.course_id, Question.qid.in_(qids))
+        .filter(Question.id.in_(qids))
         .all()
     ]
     if not q_ids:
@@ -119,7 +119,7 @@ def assessment_scores(assessment_id: int, db: Session = Depends(get_db), user: U
     qids = a.question_ids
     questions = (
         db.query(Question)
-        .filter(Question.course_id == a.course_id, Question.qid.in_(qids))
+        .filter(Question.id.in_(qids))
         .all()
         if qids
         else []
@@ -151,13 +151,13 @@ def get_assessment(assessment_id: int, db: Session = Depends(get_db), user: User
     qids = a.question_ids
     questions = (
         db.query(Question)
-        .filter(Question.course_id == a.course_id, Question.qid.in_(qids))
+        .filter(Question.id.in_(qids))
         .all()
         if qids
         else []
     )
 
-    q_by_qid = {q.qid: q for q in questions}
-    ordered = [q_by_qid[qid] for qid in qids if qid in q_by_qid]
+    q_by_id = {q.id: q for q in questions}
+    ordered = [q_by_id[qid] for qid in qids if qid in q_by_id]
 
     return AssessmentDetailOut(assessment=a, questions=ordered)
