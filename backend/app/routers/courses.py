@@ -1,11 +1,20 @@
+import json
+import logging
+import os
 import re
+
 from fastapi import APIRouter, Depends, HTTPException
+from google import genai
 from sqlalchemy.orm import Session
+
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Course, Question, User
 from app.schemas import CourseCreateRequest, CourseOut
 from app.services.course_loader import create_course
+from app.services import supermemory_service as sm
+
+log = logging.getLogger(__name__)
 
 
 def _all_topics(course: Course, db: Session) -> list[str]:
@@ -71,3 +80,100 @@ def get_topics(course_id: int, db: Session = Depends(get_db), user: User = Depen
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     return _all_topics(course, db)
+
+
+_INSIGHTS_PROMPT = """\
+You are analyzing a student's learning data for a course. Below is raw data \
+from their learning history. Produce a clean JSON summary.
+
+Rules:
+- Write in SECOND PERSON ("You", not "Student" or "The student")
+- Keep each bullet concise (one sentence max)
+- Strengths = topics/skills they consistently get right or understand well
+- Weaknesses = topics/skills they struggle with, get wrong, or need practice on
+- Only include items clearly supported by the data. Do not invent or guess.
+- If a memory says "Student answered correctly on topic X" that's a strength.
+- If a memory says "Student answered incorrectly on topic X" that's a weakness.
+- Deduplicate: if multiple memories say the same thing, combine into one bullet.
+- Recent activity = what they've been working on lately (from dynamic profile)
+- If there's not enough data for a section, return an empty array for it.
+
+RAW PROFILE DATA:
+Static facts: {static}
+Dynamic context: {dynamic}
+
+RAW MEMORIES:
+{memories}
+
+Return ONLY valid JSON in this exact format, no markdown fences:
+{{"strengths": ["..."], "weaknesses": ["..."], "recent_activity": ["..."]}}
+"""
+
+
+def _process_insights_with_gemini(raw: dict) -> dict:
+    """Use Gemini to clean and categorize raw supermemory data."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        log.warning("GEMINI_API_KEY not set, returning raw profile")
+        return {
+            "strengths": [],
+            "weaknesses": [],
+            "recent_activity": raw.get("dynamic", []),
+        }
+
+    static_str = "\n".join(f"- {s}" for s in raw.get("static", [])) or "(none)"
+    dynamic_str = "\n".join(f"- {d}" for d in raw.get("dynamic", [])) or "(none)"
+    memories_str = "\n".join(f"- {m}" for m in raw.get("memories", [])) or "(none)"
+
+    prompt = _INSIGHTS_PROMPT.format(
+        static=static_str,
+        dynamic=dynamic_str,
+        memories=memories_str,
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=1024,
+            ),
+        )
+        text = response.text.strip()
+        # Strip markdown fences if present
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        result = json.loads(text)
+        return {
+            "strengths": result.get("strengths", []),
+            "weaknesses": result.get("weaknesses", []),
+            "recent_activity": result.get("recent_activity", []),
+        }
+    except Exception:
+        log.exception("Gemini insights processing failed")
+        return {
+            "strengths": [],
+            "weaknesses": [],
+            "recent_activity": raw.get("dynamic", []),
+        }
+
+
+@router.get("/{course_id}/insights")
+def get_insights(course_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    try:
+        raw = sm.get_user_profile(user.id, course.id)
+    except Exception:
+        log.exception("Failed to fetch insights for course %s", course.id)
+        raw = {"static": [], "dynamic": [], "memories": []}
+
+    # If no data at all, skip Gemini call
+    if not raw.get("static") and not raw.get("dynamic") and not raw.get("memories"):
+        return {"strengths": [], "weaknesses": [], "recent_activity": []}
+
+    return _process_insights_with_gemini(raw)

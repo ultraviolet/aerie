@@ -81,6 +81,71 @@ def delete_document(doc_id: str) -> None:
     log.info("Deleted document %s from Supermemory", doc_id)
 
 
+def _user_tag(user_id: int, course_id: int) -> str:
+    """Single concatenated container tag for per-user, per-course memories."""
+    return f"user_{user_id}_course_{course_id}"
+
+
+def add_user_memory(content: str, user_id: int, course_id: int) -> None:
+    """Store a memory about a user's learning for a specific course."""
+    client = _get_client()
+    tag = _user_tag(user_id, course_id)
+    try:
+        client.add(content=content, container_tag=tag)
+        log.info("Added user memory (tag=%s): %s", tag, content[:120])
+    except Exception:
+        log.exception("Failed to add user memory (tag=%s)", tag)
+
+
+def search_user_memories(query: str, user_id: int, course_id: int, limit: int = 5) -> list[str]:
+    """Search memories about a user's learning for a specific course."""
+    client = _get_client()
+    tag = _user_tag(user_id, course_id)
+    try:
+        results = client.search.memories(
+            q=query,
+            container_tag=tag,
+            search_mode="hybrid",
+            limit=limit,
+        )
+        chunks: list[str] = []
+        for r in getattr(results, "results", None) or []:
+            text = getattr(r, "chunk", None) or getattr(r, "memory", None) or ""
+            if text:
+                chunks.append(text.strip())
+        log.info("User memory search (tag=%s): %d results for q=%r", tag, len(chunks), query[:60])
+        return chunks
+    except Exception:
+        log.exception("User memory search failed (tag=%s)", tag)
+        return []
+
+
+def get_user_profile(user_id: int, course_id: int) -> dict[str, list[str]]:
+    """Get the auto-built user profile + relevant memories from Supermemory."""
+    client = _get_client()
+    tag = _user_tag(user_id, course_id)
+    empty = {"static": [], "dynamic": [], "memories": []}
+    try:
+        result = client.profile(
+            container_tag=tag,
+            q="student performance strengths weaknesses topics correct incorrect",
+        )
+        memories = []
+        sr = getattr(result, "search_results", None)
+        for r in getattr(sr, "results", None) or []:
+            text = getattr(r, "memory", None) or getattr(r, "chunk", None) or ""
+            if text:
+                memories.append(text.strip())
+        return {
+            "static": getattr(result.profile, "static", []) or [],
+            "dynamic": getattr(result.profile, "dynamic", []) or [],
+            "memories": memories[:15],
+        }
+    except Exception:
+        log.exception("Failed to get user profile (tag=%s)", tag)
+        return empty
+
+
 def search(query: str, container_tag: str, limit: int = 8) -> list[str]:
     """Search Supermemory for relevant content chunks. Returns list of text strings."""
     client = _get_client()

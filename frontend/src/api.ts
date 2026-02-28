@@ -114,6 +114,10 @@ export const api = {
       body: JSON.stringify(req),
     }),
 
+  // Insights
+  getInsights: (courseId: number) =>
+    request<{ strengths: string[]; weaknesses: string[]; recent_activity: string[] }>(`/courses/${courseId}/insights`),
+
   // Question Chat
   chatAboutQuestion: (
     variantId: number,
@@ -125,6 +129,7 @@ export const api = {
       correct_answers: Record<string, unknown>;
       score: number | null;
       feedback: Record<string, unknown>;
+      course_id: number | null;
     },
   ) =>
     request<{ reply: string }>(`/variants/${variantId}/chat`, {

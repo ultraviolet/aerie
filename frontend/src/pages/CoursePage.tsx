@@ -65,6 +65,7 @@ export default function CoursePage() {
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
+          <TabsTrigger value="info">Info</TabsTrigger>
         </TabsList>
 
         <TabsContent value="assessments" className="mt-4">
@@ -82,6 +83,10 @@ export default function CoursePage() {
               api.listAssessments(courseId).then(setAssessments);
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="info" className="mt-4">
+          <InfoTab courseId={courseId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -508,6 +513,143 @@ function GenerateTab({
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Info Tab ---------- */
+
+function InfoTab({ courseId }: { courseId: number }) {
+  const [loading, setLoading] = useState(true);
+  const [strengths, setStrengths] = useState<string[]>([]);
+  const [weaknesses, setWeaknesses] = useState<string[]>([]);
+  const [recentActivity, setRecentActivity] = useState<string[]>([]);
+
+  useEffect(() => {
+    api
+      .getInsights(courseId)
+      .then((data) => {
+        setStrengths(data.strengths ?? []);
+        setWeaknesses(data.weaknesses ?? []);
+        setRecentActivity(data.recent_activity ?? []);
+      })
+      .catch(() => {
+        setStrengths([]);
+        setWeaknesses([]);
+        setRecentActivity([]);
+      })
+      .finally(() => setLoading(false));
+  }, [courseId]);
+
+  if (loading) {
+    return (
+      <p className="text-muted-foreground text-center py-8">
+        Loading insights...
+      </p>
+    );
+  }
+
+  const isEmpty =
+    strengths.length === 0 &&
+    weaknesses.length === 0 &&
+    recentActivity.length === 0;
+
+  if (isEmpty) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">
+            No insights yet. Complete some questions and we'll start tracking
+            your strengths and weaknesses here.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Strengths & Weaknesses side by side */}
+      {(strengths.length > 0 || weaknesses.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base text-green-700 dark:text-green-400">
+                Strengths
+              </CardTitle>
+              <CardDescription>Topics you're doing well on</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {strengths.length > 0 ? (
+                <ul className="space-y-2">
+                  {strengths.map((s, i) => (
+                    <li key={i} className="flex gap-2 text-sm">
+                      <span className="text-green-600 dark:text-green-400 shrink-0">
+                        +
+                      </span>
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No strengths identified yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base text-red-700 dark:text-red-400">
+                Weaknesses
+              </CardTitle>
+              <CardDescription>
+                Topics that need more practice
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {weaknesses.length > 0 ? (
+                <ul className="space-y-2">
+                  {weaknesses.map((w, i) => (
+                    <li key={i} className="flex gap-2 text-sm">
+                      <span className="text-red-600 dark:text-red-400 shrink-0">
+                        -
+                      </span>
+                      <span>{w}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No weaknesses identified yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {recentActivity.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent activity</CardTitle>
+            <CardDescription>
+              What you've been working on lately
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {recentActivity.map((item, i) => (
+                <li key={i} className="flex gap-2 text-sm">
+                  <span className="text-muted-foreground shrink-0">&#8226;</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -14,6 +14,7 @@ from app.models import Course, Question, Submission, User, Variant
 from app.schemas import QuestionOut, SubmissionOut, SubmitRequest, VariantOut
 from app.services.grader import grade_submission
 from app.services.question_renderer import generate_variant
+from app.services import supermemory_service as sm
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["questions"])
@@ -115,6 +116,21 @@ def submit_answers(variant_id: int, req: SubmitRequest, db: Session = Depends(ge
     db.commit()
     db.refresh(sub)
 
+    # Save performance to supermemory for user learning profile
+    if q and course:
+        try:
+            score = result["score"] or 0
+            topic = q.topic or "General"
+            if score >= 1.0:
+                memory = f"Student answered correctly on topic '{topic}': {q.title}"
+            elif score > 0:
+                memory = f"Student got partial credit ({score*100:.0f}%) on topic '{topic}': {q.title}"
+            else:
+                memory = f"Student answered incorrectly on topic '{topic}': {q.title}"
+            sm.add_user_memory(memory, user.id, course.id)
+        except Exception:
+            log.exception("Failed to save submission memory")
+
     return sub
 
 
@@ -134,6 +150,7 @@ class ChatRequest(BaseModel):
     correct_answers: dict[str, Any] = {}
     score: float | None = None
     feedback: dict[str, Any] = {}
+    course_id: int | None = None
 
 
 class ChatResponse(BaseModel):
@@ -152,6 +169,14 @@ Your role:
 - Keep responses concise and conversational — this is a chat, not a lecture
 - Reference the specific question and their answer when relevant
 
+You have a save_memory tool. Use it to remember important things about this \
+student's learning. Call it when:
+- The student is struggling with a specific concept or topic
+- The student explicitly says they're weak at something or asks you to remember something
+- You notice a pattern (e.g. repeated mistakes on a topic)
+- The student demonstrates strong understanding of something
+Do NOT call save_memory for every message — only when genuinely useful.
+
 QUESTION CONTEXT:
 {question_context}
 
@@ -163,7 +188,31 @@ CORRECT ANSWER:
 
 SCORE: {score}
 {feedback}
+{user_memory_context}
 """
+
+# Gemini function declaration for save_memory
+_SAVE_MEMORY_DECL = genai.types.FunctionDeclaration(
+    name="save_memory",
+    description=(
+        "Save an observation about the student's learning to long-term memory. "
+        "Use this when you notice the student struggling with a concept, when they "
+        "ask you to remember something, or when you observe a learning pattern. "
+        "The memory should be a concise, factual statement about the student."
+    ),
+    parameters=genai.types.Schema(
+        type="OBJECT",
+        properties={
+            "memory": genai.types.Schema(
+                type="STRING",
+                description="A concise factual statement about the student's learning, e.g. 'Student struggles with SQL JOIN syntax' or 'Student prefers visual explanations for tree algorithms'",
+            ),
+        },
+        required=["memory"],
+    ),
+)
+
+_SAVE_MEMORY_TOOL = genai.types.Tool(function_declarations=[_SAVE_MEMORY_DECL])
 
 
 @router.post("/variants/{variant_id}/chat", response_model=ChatResponse)
@@ -173,9 +222,14 @@ def chat_about_question(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    import re
+
     v = db.get(Variant, variant_id)
     if not v or v.user_id != user.id:
         raise HTTPException(404, "Variant not found")
+
+    q = db.get(Question, v.question_id)
+    course_id = req.course_id or (q.course_id if q else None)
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -183,8 +237,6 @@ def chat_about_question(
 
     # Build context from the question
     question_html = req.question_html or ""
-    # Strip HTML tags for a cleaner context
-    import re
     clean_question = re.sub(r"<[^>]+>", " ", question_html)
     clean_question = re.sub(r"\s+", " ", clean_question).strip()
 
@@ -193,12 +245,24 @@ def chat_about_question(
     if req.feedback and req.feedback.get("message"):
         feedback_str = f"FEEDBACK: {req.feedback['message']}"
 
+    # Search user memories for relevant context
+    user_memory_context = ""
+    if course_id:
+        topic = q.topic if q else req.message
+        memories = sm.search_user_memories(topic, user.id, course_id, limit=5)
+        if memories:
+            user_memory_context = (
+                "\nSTUDENT LEARNING HISTORY (from previous interactions):\n"
+                + "\n".join(f"- {m}" for m in memories)
+            )
+
     system_prompt = CHAT_SYSTEM_PROMPT.format(
         question_context=clean_question[:2000],
         student_answer=json.dumps(req.submitted_answers, default=str)[:500],
         correct_answer=json.dumps(req.correct_answers, default=str)[:500],
         score=score_str,
         feedback=feedback_str,
+        user_memory_context=user_memory_context,
     )
 
     # Build conversation contents for Gemini
@@ -208,7 +272,6 @@ def chat_about_question(
             role="user" if msg.role == "user" else "model",
             parts=[genai.types.Part(text=msg.content)],
         ))
-    # Add the new user message
     contents.append(genai.types.Content(
         role="user",
         parts=[genai.types.Part(text=req.message)],
@@ -223,9 +286,47 @@ def chat_about_question(
                 system_instruction=system_prompt,
                 temperature=0.7,
                 max_output_tokens=1024,
+                tools=[_SAVE_MEMORY_TOOL],
             ),
         )
-        reply = response.text.strip()
+
+        # Handle function calls — Gemini may call save_memory + return text
+        reply_parts: list[str] = []
+        for candidate in response.candidates or []:
+            for part in candidate.content.parts or []:
+                if part.text:
+                    reply_parts.append(part.text)
+                if part.function_call and part.function_call.name == "save_memory":
+                    args = part.function_call.args or {}
+                    memory_text = args.get("memory", "")
+                    if memory_text and course_id:
+                        sm.add_user_memory(memory_text, user.id, course_id)
+                        log.info("Gemini saved memory for user %d: %s", user.id, memory_text[:120])
+
+        reply = " ".join(reply_parts).strip()
+
+        # If Gemini only returned a function call with no text, do a follow-up
+        if not reply:
+            # Send the function result back and get the text response
+            contents.append(response.candidates[0].content)
+            contents.append(genai.types.Content(
+                role="user",
+                parts=[genai.types.Part(function_response=genai.types.FunctionResponse(
+                    name="save_memory",
+                    response={"status": "saved"},
+                ))],
+            ))
+            follow_up = client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=contents,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.7,
+                    max_output_tokens=1024,
+                ),
+            )
+            reply = follow_up.text.strip()
+
         log.info("Chat response for variant %d: %d chars", variant_id, len(reply))
         return ChatResponse(reply=reply)
     except Exception as e:
