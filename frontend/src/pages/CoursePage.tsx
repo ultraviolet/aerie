@@ -378,7 +378,7 @@ function MaterialsTab({
                 >
                   {viewMode === "grid" ? (
                     <CardHeader>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between">
                         <CardDescription className="text-[12px] font-mono text-slate-500 tracking-tighter uppercase mt-1">
                           {m.question_ids.length} question
                           {m.question_ids.length !== 1 ? "s" : ""}
@@ -392,38 +392,42 @@ function MaterialsTab({
                         </span>
                       </div>
                       <CardTitle className="text-base group-hover:text-primary transition-colors">
-                        {m.number ? `${m.number}. ` : ""}
                         {m.title}
                       </CardTitle>
                     </CardHeader>
                   ) : (
-                    <>
-                      <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-mono shrink-0"
-                        >
+                    <div className="flex flex-row items-center w-full gap-6">
+                      {/* Dynamic Left Column: Scales with page but keeps titles aligned */}
+                      <div className="flex items-center justify-between basis-1/4 min-w-[140px] max-w-[220px] shrink-0 border-r border-slate-100 pr-6">
+                        <CardDescription className="text-[11px] font-mono text-slate-500 tracking-tighter uppercase whitespace-nowrap">
                           {m.question_ids.length} question
                           {m.question_ids.length !== 1 ? "s" : ""}
-                        </Badge>
-                        <h3 className="font-bold text-slate-900 group-hover:text-primary truncate text-sm sm:text-base">
-                          {m.number ? `${m.number}. ` : ""}
-                          {m.title}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest hidden sm:block">
-                          {m.type}
-                        </div>
+                        </CardDescription>
+
                         <span
-                          className={`text-[12px] font-black font-mono px-2 py-1 rounded-md border shadow-sm ${m.score_pct == null ? "bg-slate-100 text-slate-700 border-slate-200" : m.score_pct >= 100 ? "bg-green-100 text-green-700 border-green-200" : m.score_pct > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200"}`}
+                          className={`text-[11px] min-w-[42px] text-center font-black font-mono px-1.5 py-0.5 rounded-md border shadow-sm shrink-0 transition-colors ${
+                            m.score_pct == null
+                              ? "bg-slate-100 text-slate-700 border-slate-200"
+                              : m.score_pct >= 100
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : m.score_pct > 0
+                                  ? "bg-amber-100 text-amber-700 border-amber-200"
+                                  : "bg-red-100 text-red-700 border-red-200"
+                          }`}
                         >
                           {m.score_pct != null
                             ? `${Math.round(m.score_pct)}%`
                             : "NEW"}
                         </span>
                       </div>
-                    </>
+
+                      {/* Fluid Right Column: Takes up all remaining space */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold text-md group-hover:text-primary transition-colors truncate">
+                          {m.title}
+                        </h3>
+                      </div>
+                    </div>
                   )}
                 </Card>
               </Link>
@@ -520,13 +524,13 @@ function GenerateMaterialView({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 pt-0 px-0">
-          <div>
+          <div className="px-1">
             <Textarea
               placeholder='e.g. "test me on unit 1", "quiz me on my weak areas", or "practice binary trees from chapter 3"'
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}
-              className="resize-none bg-slate-50 border-slate-200 focus-visible:ring-primary/50"
+              className="resize-none bg-slate-50 border-slate-200 focus-visible:border-primary/60 focus-visible:ring-[2px] focus-visible:ring-primary/10 focus-visible:outline-none"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey))
                   handleGenerate();
