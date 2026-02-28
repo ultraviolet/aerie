@@ -34,10 +34,13 @@ class UserOut(BaseModel):
 
 class CourseCreateRequest(BaseModel):
     title: str
-
+class CourseUpdateRequest(BaseModel):
+    title: str
 
 class SubmitRequest(BaseModel):
     submitted_answers: dict[str, Any]
+
+
 
 
 # -- Responses --

@@ -116,7 +116,11 @@ export const api = {
 
   // Insights
   getInsights: (courseId: number) =>
-    request<{ strengths: string[]; weaknesses: string[]; recent_activity: string[] }>(`/courses/${courseId}/insights`),
+    request<{
+      strengths: string[];
+      weaknesses: string[];
+      recent_activity: string[];
+    }>(`/courses/${courseId}/insights`),
 
   // Question Chat
   chatAboutQuestion: (
@@ -135,5 +139,16 @@ export const api = {
     request<{ reply: string }>(`/variants/${variantId}/chat`, {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  updateCourse: (courseId: number, data: { title: string }) =>
+    request<Course>(`/courses/${courseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteCourse: (courseId: number) =>
+    request<{ ok: boolean }>(`/courses/${courseId}`, {
+      method: "DELETE",
     }),
 };

@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Course, Question, User
-from app.schemas import CourseCreateRequest, CourseOut
-from app.services.course_loader import create_course
+from app.schemas import CourseCreateRequest, CourseOut, CourseUpdateRequest
+from app.services.course_loader import create_course, delete_course, edit_course
 from app.services import supermemory_service as sm
 
 log = logging.getLogger(__name__)
@@ -177,3 +177,41 @@ def get_insights(course_id: int, db: Session = Depends(get_db), user: User = Dep
         return {"strengths": [], "weaknesses": [], "recent_activity": []}
 
     return _process_insights_with_gemini(raw)
+
+@router.patch("/{course_id}", response_model=CourseOut)
+def update_course_endpoint(
+    course_id: int,
+    req: CourseUpdateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    title_text = req.title.strip()
+    if not title_text:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+        
+    try:
+        return edit_course(db=db, course_id=course_id, user_id=user.id, new_title=title_text)
+    except ValueError as e:
+        # Our edit_course raises a ValueError if the course isn't found or access is denied
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        log.exception(f"Failed to update course {course_id}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/{course_id}")
+def delete_course_endpoint(
+    course_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    try:
+        delete_course(db=db, course_id=course_id, user_id=user.id)
+        return {"ok": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        log.exception(f"Failed to delete course {course_id}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
