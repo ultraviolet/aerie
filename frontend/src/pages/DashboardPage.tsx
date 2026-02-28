@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import {
   Plus,
@@ -50,13 +52,14 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Dashboard Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">
             Courses
           </h1>
-          <p className="text-slate-400">
+          <p className="text-slate-400 text-sm">
             Manage your AI-enhanced course materials.
           </p>
         </div>
@@ -78,18 +81,21 @@ export default function DashboardPage() {
       </div>
 
       {showCreateForm ? (
-        <div className="max-w-2xl mx-auto transition-all duration-500">
+        <div className="max-w-2xl mx-auto animate-in zoom-in-95 duration-500">
           <Card>
             <CardHeader>
               <CardTitle>Load Course Path</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription>
                 Enter the absolute path to your PrairieLearn directory.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleCreate}>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="path" className="text-slate-200">
+                  <Label
+                    htmlFor="path"
+                    className="text-slate-400 uppercase text-[10px] tracking-widest font-bold"
+                  >
                     Directory Path
                   </Label>
                   <Input
@@ -102,24 +108,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 pt-4">
-                  <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                    <FileText className="size-5 mb-2 text-slate-400" />
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                      Docs
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                    <BrainCircuit className="size-5 mb-2 text-slate-400" />
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                      AI Quiz
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                    <BookOpen className="size-5 mb-2 text-slate-400" />
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                      Assess
-                    </span>
-                  </div>
+                  <FeatureIndicator icon={<FileText />} label="Docs" />
+                  <FeatureIndicator icon={<BrainCircuit />} label="AI Quiz" />
+                  <FeatureIndicator icon={<BookOpen />} label="Assess" />
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between border-t border-slate-800 pt-6">
@@ -130,7 +121,11 @@ export default function DashboardPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" isLoading={isLoading}>
+                <Button
+                  type="submit"
+                  isLoading={isLoading}
+                  className="min-w-[140px]"
+                >
                   <Save className="mr-2 size-4" />
                   Load Course
                 </Button>
@@ -145,37 +140,66 @@ export default function DashboardPage() {
               <Link
                 key={course.id}
                 to={`/courses/${course.id}`}
-                className="no-underline"
+                className="no-underline block"
               >
-                <Card className="cursor-pointer hover:bg-slate-900/50 transition-colors">
+                {/* Passing only cursor-pointer. 
+                   Hover and Click effects are now managed by the default Card component.
+                */}
+                <Card className="cursor-pointer h-full">
                   <CardHeader>
+                    <div className="p-2 w-fit rounded-lg bg-slate-900 border border-slate-800 mb-2">
+                      <GraduationCap className="size-5 text-slate-400" />
+                    </div>
                     <CardTitle>{course.title || course.name}</CardTitle>
-                    <CardDescription className="text-[10px] font-mono">
-                      {course.container_tag}
+                    <CardDescription className="text-[10px] font-mono tracking-tighter uppercase">
+                      Container: {course.container_tag}
                     </CardDescription>
                   </CardHeader>
                 </Card>
               </Link>
             ))
           ) : (
-            <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/20">
-              <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-4">
-                <GraduationCap className="size-10 text-slate-700" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-200">
-                Your library is empty
-              </h3>
-              <p className="text-slate-500 mb-8 max-w-xs text-center">
-                Add your first course to start saving documents and generating
-                AI assessments.
-              </p>
-              <Button onClick={() => setShowCreateForm(true)}>
-                Add First Course
-              </Button>
-            </div>
+            <EmptyStateView onAction={() => setShowCreateForm(true)} />
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* --- UI Sub-components --- */
+
+function FeatureIndicator({
+  icon,
+  label,
+}: {
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+      <div className="size-5 mb-2 text-slate-500">{icon}</div>
+      <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function EmptyStateView({ onAction }: { onAction: () => void }) {
+  return (
+    <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/20">
+      <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-4 shadow-inner">
+        <GraduationCap className="size-10 text-slate-700" />
+      </div>
+      <h3 className="text-xl font-semibold text-white">
+        Your library is empty
+      </h3>
+      <p className="text-slate-500 mb-8 max-w-xs text-center text-sm leading-relaxed">
+        Add your first PrairieLearn course to begin generating AI-enhanced
+        materials.
+      </p>
+      <Button onClick={onAction}>Add First Course</Button>
     </div>
   );
 }
