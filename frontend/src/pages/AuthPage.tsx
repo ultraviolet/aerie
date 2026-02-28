@@ -51,9 +51,11 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">
-            aerie
-          </CardTitle>
+          <img
+            src="/Gemini_Generated_Image_ps4wo3ps4wo3ps4w-removebg-preview.png"
+            alt="aerie"
+            className="mx-auto h-14"
+          />
           <CardDescription>AI-powered self-study platform</CardDescription>
         </CardHeader>
         <CardContent>

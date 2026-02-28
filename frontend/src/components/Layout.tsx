@@ -24,11 +24,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
-        <Link
-          to="/"
-          className="text-2xl font-bold tracking-tight text-slate-900 no-underline"
-        >
-          aerie
+        <Link to="/" className="no-underline">
+          <img
+            src="/Gemini_Generated_Image_ps4wo3ps4wo3ps4w-removebg-preview.png"
+            alt="aerie"
+            className="h-10"
+          />
         </Link>
         {user && (
           <Button
