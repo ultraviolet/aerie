@@ -25,7 +25,7 @@ export interface Assessment {
   type: string;
   number: string;
   set_name: string;
-  question_ids: string[];
+  question_ids: number[];
   score_pct: number | null;
 }
 
