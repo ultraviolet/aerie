@@ -117,7 +117,7 @@ export default function QuestionPage() {
       </div>
 
       {/* Split pane */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
         {/* Left panel — Question content / Answer explanation */}
         <ResizablePanel defaultSize={50} minSize={30}>
           <div className="flex h-full flex-col">
