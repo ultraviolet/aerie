@@ -283,17 +283,12 @@ function MaterialsTab({
   if (isGenerating) {
     return (
       <div className="flex flex-col h-full overflow-hidden animate-in fade-in duration-300">
-        <div className="shrink-0 mb-4">
-          <Button
-            variant="ghost"
-            onClick={() => setIsGenerating(false)}
-            className="-ml-4 text-slate-500 hover:text-slate-900"
-          >
-            &larr; back to materials
-          </Button>
-        </div>
         <div className="flex-1 overflow-y-auto pb-12 pr-2">
-          <GenerateMaterialView courseId={courseId} onGenerated={onRefresh} />
+          <GenerateMaterialView
+            courseId={courseId}
+            onGenerated={onRefresh}
+            onCancel={() => setIsGenerating(false)}
+          />
         </div>
       </div>
     );
@@ -411,9 +406,11 @@ function MaterialsTab({
 function GenerateMaterialView({
   courseId,
   onGenerated,
+  onCancel,
 }: {
   courseId: number;
   onGenerated: () => void;
+  onCancel: () => void;
 }) {
   const [prompt, setPrompt] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -425,7 +422,6 @@ function GenerateMaterialView({
   const [docCount, setDocCount] = useState<number | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [courseTopics, setCourseTopics] = useState<string[]>([]);
-  const [topicsOpen, setTopicsOpen] = useState(false);
 
   useEffect(() => {
     api.listDocuments(courseId).then((docs) => setDocCount(docs.length));
@@ -464,32 +460,20 @@ function GenerateMaterialView({
 
   return (
     <div className="space-y-6">
-      {docCount === 0 && (
-        <Card className="border-amber-500/50 bg-amber-50">
-          <CardContent className="py-3 px-4">
-            <p className="text-sm text-amber-800">
-              No documents uploaded yet. The AI will generate generic questions
-              without your course materials. Upload documents in the Documents
-              tab first for highly tailored materials.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card className="border-primary/20 shadow-md">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-          <CardTitle className="text-lg flex items-center gap-2">
-            Generate Material
+        <CardHeader className="">
+          <CardTitle className="text-xl flex items-center gap-2 font-bold">
+            generate material
           </CardTitle>
           <CardDescription>
-            Describe the kind of material you want to practice. The AI will use
-            your uploaded documents to build it.
+            describe the kind of material you want to practice, and aerie will
+            use your uploaded documents to build it.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5 pt-6">
+        <CardContent className="space-y-5 pt-0">
           <div>
             <Textarea
-              placeholder="e.g. Generate a multiple choice quiz about binary search trees and their time complexity"
+              placeholder="e.g. generate a multiple choice quiz about binary search trees and their time complexity"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}
@@ -500,97 +484,89 @@ function GenerateMaterialView({
               }}
             />
             <p className="text-xs text-slate-400 mt-2 font-mono">
-              Press Ctrl+Enter to generate
+              press Ctrl+Enter to generate
             </p>
           </div>
 
+          {/* Unified Compact Topics View */}
           <div>
             <label className="text-sm font-bold text-slate-700 mb-2 block">
-              Filter by Topics (optional)
+              filter by topics (optional)
             </label>
-            {selectedTopics.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {selectedTopics.map((t) => (
+            <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-1 custom-scrollbar">
+              {/* Show selected first */}
+              {selectedTopics.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleTopic(t)}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                >
+                  {t}
+                  <span className="text-primary/60 ml-0.5">&times;</span>
+                </button>
+              ))}
+
+              {/* Show remaining available topics */}
+              {courseTopics
+                .filter((t) => !selectedTopics.includes(t))
+                .map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => toggleTopic(t)}
-                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                    className="rounded-md border border-dashed border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
                   >
-                    {t}
-                    <span className="text-primary/60 ml-0.5">&times;</span>
+                    + {t}
                   </button>
                 ))}
-              </div>
-            )}
-            {courseTopics.length > 0 ? (
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTopicsOpen(!topicsOpen)}
-                  className="text-xs h-8 text-slate-600"
-                >
-                  {topicsOpen
-                    ? "Close topics menu"
-                    : `Browse ${courseTopics.length} existing topics...`}
-                </Button>
-                {topicsOpen && (
-                  <div className="flex flex-wrap gap-2 mt-3 p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                    {courseTopics
-                      .filter((t) => !selectedTopics.includes(t))
-                      .map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => toggleTopic(t)}
-                          className="rounded-md border border-dashed border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
-                        >
-                          + {t}
-                        </button>
-                      ))}
-                    {courseTopics.filter((t) => !selectedTopics.includes(t))
-                      .length === 0 && (
-                      <span className="text-xs text-slate-400">
-                        All available topics selected
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400">
-                No topics exist yet. The AI will tag new topics automatically.
-              </p>
-            )}
+
+              {courseTopics.length === 0 && (
+                <p className="text-xs text-slate-400 w-full">
+                  no topics exist yet, but aerie will tag new topics
+                  automatically.
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="flex gap-4 items-end pt-2">
-            <div className="w-24">
-              <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                Question Count
-              </label>
-              <Input
-                type="number"
-                min={1}
-                max={20}
-                value={numQuestions}
-                className="bg-slate-50"
-                onChange={(e) =>
-                  setNumQuestions(
-                    Math.min(20, Math.max(1, Number(e.target.value) || 1)),
-                  )
-                }
-              />
-            </div>
+          {/* Inline Action Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
             <Button
-              onClick={handleGenerate}
-              disabled={generating || !prompt.trim()}
-              className="flex-1 font-bold shadow-md h-10"
+              variant="ghost"
+              onClick={onCancel}
+              disabled={generating}
+              className="text-slate-500 hover:text-slate-900 font-medium"
             >
-              {generating ? "Building Material..." : "Generate Material"}
+              cancel
             </Button>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
+                  question count:
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={numQuestions}
+                  className="w-20 bg-slate-50 h-10 font-mono"
+                  onChange={(e) =>
+                    setNumQuestions(
+                      Math.min(20, Math.max(1, Number(e.target.value) || 1)),
+                    )
+                  }
+                />
+              </div>
+              <Button
+                onClick={handleGenerate}
+                disabled={generating || !prompt.trim()}
+                className="flex-1 sm:flex-none font-bold shadow-md h-10 px-8 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                {generating ? "generating..." : "generate"}
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -827,18 +803,6 @@ function DocumentsTab({ courseId }: { courseId: number }) {
                   <span className="text-sm font-medium text-slate-800 truncate">
                     {doc.filename}
                   </span>
-                  <Badge
-                    variant={
-                      doc.status === "done"
-                        ? "default"
-                        : doc.status === "failed"
-                          ? "destructive"
-                          : "secondary"
-                    }
-                    className="text-[9px] uppercase tracking-wider shrink-0 px-1.5 py-0"
-                  >
-                    {doc.status === "done" ? "Indexed" : doc.status}
-                  </Badge>
                 </div>
                 <Button
                   variant="outline"
