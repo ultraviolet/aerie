@@ -26,9 +26,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
         <Link
           to="/"
-          className="text-xl font-bold tracking-tight text-slate-900 no-underline"
+          className="text-2xl font-bold tracking-tight text-slate-900 no-underline"
         >
-          prAIrie
+          aerie
         </Link>
         {user && (
           <Button

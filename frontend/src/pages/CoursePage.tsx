@@ -745,12 +745,12 @@ function DocumentsTab({ courseId }: { courseId: number }) {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-white border border-red-200 shadow-lg rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
             <div className="flex items-center gap-3 text-red-800 font-bold text-lg">
-              <AlertCircle className="size-5" /> Delete Document?
+              <AlertCircle className="size-5" /> delete document?
             </div>
             <p className="text-sm text-slate-600 font-medium leading-relaxed">
-              Are you sure you want to remove{" "}
+              are you sure you want to remove{" "}
               <strong className="text-slate-900">{docToDelete.filename}</strong>
-              ? This will permanently wipe it from the AI's memory context.
+              ? this will permanently wipe it from the AI's memory context.
             </p>
             <div className="flex items-center gap-3 mt-2 justify-end">
               <Button
@@ -759,14 +759,14 @@ function DocumentsTab({ courseId }: { courseId: number }) {
                 disabled={isDeleting}
                 className="text-slate-600 hover:text-slate-900"
               >
-                Cancel
+                cancel
               </Button>
               <Button
                 variant="destructive"
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? "Deleting..." : "Yes, remove"}
+                {isDeleting ? "deleting..." : "yes, remove"}
               </Button>
             </div>
           </div>
@@ -793,8 +793,8 @@ function DocumentsTab({ courseId }: { courseId: number }) {
 
       {/* Document list (SCROLLABLE) */}
       <div className="flex-1 overflow-y-auto pb-12 pr-2">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3 mt-1">
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest m-0">
+        <div className="flex items-center justify-between pb-2 mb-3 mt-1">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest m-0">
             Active Files
           </h3>
           <Button
@@ -804,13 +804,13 @@ function DocumentsTab({ courseId }: { courseId: number }) {
             className="h-8 shadow-sm font-bold"
           >
             <Plus className="size-4 mr-1.5" />
-            {uploading ? "Uploading..." : "Upload file(s)"}
+            {uploading ? "uploading..." : "upload file(s)"}
           </Button>
         </div>
 
         {documents.length === 0 ? (
           <p className="text-slate-500 text-sm italic mt-8 text-center">
-            No course materials uploaded yet.
+            no course materials uploaded yet.
           </p>
         ) : (
           <div className="flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">

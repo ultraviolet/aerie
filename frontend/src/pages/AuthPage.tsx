@@ -52,15 +52,15 @@ export default function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold tracking-tight">
-            prAIrie
+            aerie
           </CardTitle>
           <CardDescription>AI-powered self-study platform</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Log in</TabsTrigger>
-              <TabsTrigger value="register">Sign up</TabsTrigger>
+              <TabsTrigger value="login">log in</TabsTrigger>
+              <TabsTrigger value="register">sign up</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="space-y-4 pt-4">
@@ -70,7 +70,7 @@ export default function AuthPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit("login")}
-                  placeholder="Username"
+                  placeholder="username"
                   autoComplete="username"
                 />
               </div>
@@ -81,7 +81,7 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit("login")}
-                  placeholder="Password"
+                  placeholder="password"
                   autoComplete="current-password"
                 />
               </div>
@@ -91,7 +91,7 @@ export default function AuthPage() {
                 onClick={() => handleSubmit("login")}
                 disabled={loading}
               >
-                {loading ? "Logging in..." : "Log in"}
+                {loading ? "logging in..." : "log in"}
               </Button>
             </TabsContent>
 
@@ -104,7 +104,7 @@ export default function AuthPage() {
                   onKeyDown={(e) =>
                     e.key === "Enter" && handleSubmit("register")
                   }
-                  placeholder="Choose a username"
+                  placeholder="choose a username"
                   autoComplete="username"
                 />
               </div>
@@ -117,7 +117,7 @@ export default function AuthPage() {
                   onKeyDown={(e) =>
                     e.key === "Enter" && handleSubmit("register")
                   }
-                  placeholder="Choose a password"
+                  placeholder="choose a password"
                   autoComplete="new-password"
                 />
               </div>
@@ -127,7 +127,7 @@ export default function AuthPage() {
                 onClick={() => handleSubmit("register")}
                 disabled={loading}
               >
-                {loading ? "Creating account..." : "Sign up"}
+                {loading ? "creating account..." : "sign up"}
               </Button>
             </TabsContent>
           </Tabs>

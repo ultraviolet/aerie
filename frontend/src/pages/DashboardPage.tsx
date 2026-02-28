@@ -207,7 +207,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-4 px-4 py-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
                     <div className="flex flex-col overflow-hidden flex-1">
-                      <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors">
+                      <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors uppercase tracking-tighter">
                         {c.title || c.name}
                       </span>
                     </div>
