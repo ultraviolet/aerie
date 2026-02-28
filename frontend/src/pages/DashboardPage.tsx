@@ -39,22 +39,32 @@ export default function DashboardPage() {
 
   // Updated ResizeObserver for the slimmer 48px items
 
+  const recentContentRef = useRef<HTMLDivElement>(null);
+  const recentItemRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const calculate = () => {
-      if (!recentCardRef.current) return;
-      const cardHeight = recentCardRef.current.getBoundingClientRect().height;
-      const headerHeight = 57; // measure this once in devtools and hardcode it
-      const padding = 16;
-      const available = cardHeight - headerHeight - padding;
-      const fit = Math.floor((available + 12) / (48 + 12));
+      const container = recentContentRef.current;
+      if (!container) return;
+
+      const containerHeight = container.clientHeight;
+      // Fixed height from your RecentItem (74px) + gap-3 (12px)
+      const itemHeight = 74;
+      const gap = 12;
+
+      // The formula: (Total Height + Gap) / (Item Height + Gap)
+      // We add one gap to the total height because the last item doesn't have a gap after it
+      const fit = Math.floor((containerHeight + gap) / (itemHeight + gap));
+
       setRecentLimit(Math.max(1, fit));
     };
 
     const observer = new ResizeObserver(calculate);
-    if (recentCardRef.current) observer.observe(recentCardRef.current);
-    setTimeout(calculate, 50);
+    if (recentContentRef.current) observer.observe(recentContentRef.current);
+
+    calculate(); // Initial call
     return () => observer.disconnect();
-  }, []);
+  }, [recentItems]); // Re-run if data changes
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full mt-0 pb-10 min-h-0 overflow-hidden animate-in fade-in duration-700">
@@ -135,7 +145,7 @@ export default function DashboardPage() {
             className="bg-slate-100 border-slate-200 flex flex-col h-full shadow-inner min-h-0"
             style={{ height: "100%", minHeight: 0 }}
           >
-            <CardHeader className="shrink-0 border-b border-slate-200 bg-slate-200/30 pb-4">
+            <CardHeader className="shrink-0 border-b border-slate-200 pt-0 pb-6">
               <div className="flex justify-between items-center px-1">
                 <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                   Recent
@@ -144,20 +154,23 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent
-              className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 min-h-0"
-              style={{ height: "400px", paddingTop: 0 }}
+              ref={recentContentRef}
+              className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 pt-0 min-h-0"
             >
               {recentItems.length > 0 ? (
-                recentItems.slice(0, recentLimit).map((item) => (
+                recentItems.slice(0, recentLimit).map((item, i) => (
                   <Link
                     key={item.assessment_id}
                     to={`/assessments/${item.assessment_id}`}
                     className="block no-underline"
                   >
-                    <RecentItem
-                      topic={item.title}
-                      score={item.score_pct ?? 0}
-                    />
+                    <div ref={i === 0 ? recentItemRef : undefined}>
+                      <RecentItem
+                        topic={item.title}
+                        score={item.score_pct ?? 0}
+                        courseName={item.course_title}
+                      />
+                    </div>
                   </Link>
                 ))
               ) : (
@@ -172,7 +185,7 @@ export default function DashboardPage() {
 
       {/* 3. COURSE LIBRARY (Unchanged per request) */}
       <Card
-        className="lg:col-span-2 flex flex-col h-full bg-white border-slate-200 shadow-xl overflow-hidden p-0 relative"
+        className="lg:col-span-2 flex flex-col h-full bg-white border-slate-200 overflow-hidden p-0 relative"
         style={{ height: "100%", minHeight: 0, overflow: "visible" }}
       >
         <div className="bg-slate-900 px-6 py-6 shrink-0 flex items-center justify-between border-b border-slate-800 rounded-t-xl">
@@ -230,41 +243,62 @@ export default function DashboardPage() {
 }
 
 /**
- * Slim heatmap component for recent activity
+ * Modernized Recent Assessment Item
  */
-function RecentItem({ topic, score }: { topic: string; score: number }) {
-  // NICE ORANGE: Amber-500 (#F59E0B)
-  // INVERSE OPACITY: Low score (0) = 1.0 opacity | High score (100) = 0.1 opacity
-  const scoreRatio = score / 110;
-  const intensity = 1 - Math.pow(scoreRatio, 4);
+function RecentItem({
+  topic,
+  score,
+  courseName,
+}: {
+  topic: string;
+  score: number;
+  courseName?: string;
+}) {
+  // Logic for color status based on score
+  const getStatusColor = (s: number) => {
+    if (s >= 90) return "bg-emerald-500";
+    if (s >= 70) return "bg-amber-500";
+    return "bg-rose-500";
+  };
 
   return (
-    <button
-      className={cn(
-        "w-full text-left p-3 rounded-xl border flex items-center justify-between shrink-0 h-[48px] transition-all duration-200",
-        // Interaction: Lift on hover, press on active
-        "hover:scale-[1.01] hover:shadow-sm active:scale-[0.99] active:brightness-95",
-        "group",
-      )}
-      style={{
-        backgroundColor: `rgba(245, 158, 11, ${Math.max(intensity, 0.02)})`,
-        borderColor: "rgba(245, 158, 11, 0.2)",
-        cursor: "pointer",
-      }}
-    >
-      <div className="flex items-center gap-2 overflow-hidden">
-        {/* Always black font as requested */}
-        <span className="text-md font-semibold text-black truncate transition-colors">
-          {topic}
-        </span>
-        <ArrowRight className="size-4.5 text-black/80 transition-all opacity-0 group-hover:opacity-100 group-hover:translate-x-1" />
-      </div>
+    <div className="group relative bg-white border border-slate-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:border-primary/20 active:scale-[0.99] cursor-pointer overflow-hidden h-[74px]">
+      {/* Visual Status Indicator (Vertical line on the left) */}
 
-      <div className="flex items-center gap-2">
-        <span className="text-[15px] font-black font-mono px-2 py-0.5 rounded-lg bg-white/50 text-black border border-black/5 shadow-sm">
-          {score}%
-        </span>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col min-w-0 gap-1">
+          {/* Course Tag */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">
+              {courseName || "General"}
+            </span>
+          </div>
+
+          {/* Assessment Title */}
+          <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
+            {topic}
+          </h3>
+        </div>
+
+        {/* Score Badge */}
+        <div className="flex flex-col items-end shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-black font-mono text-slate-900">
+              {score}
+              <span className="text-[10px] text-slate-400 ml-0.5">%</span>
+            </span>
+            <ArrowRight className="size-4 text-slate-300 transition-all group-hover:text-primary group-hover:translate-x-1" />
+          </div>
+
+          {/* Mini progress bar under the number */}
+          <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+            <div
+              className={cn("h-full rounded-full", getStatusColor(score))}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
