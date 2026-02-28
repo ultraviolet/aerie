@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { api } from "@/api";
 import QuestionContent from "@/components/QuestionContent";
 import QuestionInputs from "@/components/QuestionInputs";
@@ -31,7 +36,9 @@ export default function QuestionPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [assessmentQuestionIds, setAssessmentQuestionIds] = useState<number[]>([]);
+  const [assessmentQuestionIds, setAssessmentQuestionIds] = useState<number[]>(
+    [],
+  );
 
   // Chat State
   const [chatInput, setChatInput] = useState("");
@@ -68,9 +75,12 @@ export default function QuestionPage() {
   // Fetch assessment question order for "Next Question" navigation
   useEffect(() => {
     if (!assessmentId) return;
-    api.getAssessment(Number(assessmentId)).then((detail) => {
-      setAssessmentQuestionIds(detail.questions.map((q) => q.id));
-    }).catch(() => {});
+    api
+      .getAssessment(Number(assessmentId))
+      .then((detail) => {
+        setAssessmentQuestionIds(detail.questions.map((q) => q.id));
+      })
+      .catch(() => {});
   }, [assessmentId]);
 
   const handleAnswerChange = (name: string, value: unknown) => {
@@ -98,7 +108,10 @@ export default function QuestionPage() {
     if (!chatInput.trim() || !variant || !submission) return;
 
     const userMsg = chatInput;
-    const currentHistory = [...messages, { role: "user" as const, content: userMsg }];
+    const currentHistory = [
+      ...messages,
+      { role: "user" as const, content: userMsg },
+    ];
     setMessages(currentHistory);
     setChatInput("");
     setChatLoading(true);
@@ -109,15 +122,20 @@ export default function QuestionPage() {
         history: messages, // send previous messages (before this one)
         question_html: variant.rendered_html,
         submitted_answers: answers,
-        correct_answers: submission.feedback?.correct_answers as Record<string, unknown> ?? {},
+        correct_answers:
+          (submission.feedback?.correct_answers as Record<string, unknown>) ??
+          {},
         score: submission.score,
-        feedback: submission.feedback as Record<string, unknown> ?? {},
+        feedback: (submission.feedback as Record<string, unknown>) ?? {},
       });
       setMessages((prev) => [...prev, { role: "ai", content: res.reply }]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "ai", content: `Error: ${err instanceof Error ? err.message : "Something went wrong"}` },
+        {
+          role: "ai",
+          content: `Error: ${err instanceof Error ? err.message : "Something went wrong"}`,
+        },
       ]);
     } finally {
       setChatLoading(false);
@@ -126,7 +144,10 @@ export default function QuestionPage() {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+      scrollRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest", // <-- This stops the whole page from shifting up
+      });
     }
   }, [messages]);
 
@@ -149,7 +170,8 @@ export default function QuestionPage() {
     currentIdx >= 0 && currentIdx < assessmentQuestionIds.length - 1
       ? assessmentQuestionIds[currentIdx + 1]
       : null;
-  const isLastQuestion = currentIdx >= 0 && currentIdx === assessmentQuestionIds.length - 1;
+  const isLastQuestion =
+    currentIdx >= 0 && currentIdx === assessmentQuestionIds.length - 1;
 
   if (loading)
     return (
@@ -188,11 +210,13 @@ export default function QuestionPage() {
             {question.topic}
           </Badge>
         )}
-        {assessmentId && assessmentQuestionIds.length > 0 && currentIdx >= 0 && (
-          <span className="text-xs text-muted-foreground ml-auto font-mono">
-            {currentIdx + 1} / {assessmentQuestionIds.length}
-          </span>
-        )}
+        {assessmentId &&
+          assessmentQuestionIds.length > 0 &&
+          currentIdx >= 0 && (
+            <span className="text-xs text-muted-foreground ml-auto font-mono">
+              {currentIdx + 1} / {assessmentQuestionIds.length}
+            </span>
+          )}
       </div>
 
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
@@ -273,13 +297,17 @@ export default function QuestionPage() {
 
             {/* 3. Fixed Chat Input (Outside ScrollArea, at bottom of Panel) */}
             {submission && (
-              <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+              <div className="p-4 bg-white border-t border-slate-100 shrink-0 mt-auto">
                 <form
                   onSubmit={handleSendMessage}
                   className="relative flex items-center max-w-3xl mx-auto w-full"
                 >
                   <Input
-                    placeholder={chatLoading ? "Thinking..." : "Ask a question about this problem..."}
+                    placeholder={
+                      chatLoading
+                        ? "Thinking..."
+                        : "Ask a question about this problem..."
+                    }
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     disabled={chatLoading}
@@ -340,7 +368,11 @@ export default function QuestionPage() {
                   </>
                 ) : assessmentId && nextQuestionId ? (
                   <Button
-                    onClick={() => navigate(`/questions/${nextQuestionId}?assessment=${assessmentId}`)}
+                    onClick={() =>
+                      navigate(
+                        `/questions/${nextQuestionId}?assessment=${assessmentId}`,
+                      )
+                    }
                     className="flex-1 font-bold"
                   >
                     Next Question &rarr;
