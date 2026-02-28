@@ -11,9 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Course, Question, Submission, User, Variant
+from app.models import Assessment, Course, Question, Submission, User, Variant
 from app.schemas import QuestionOut, SubmissionOut, SubmitRequest, VariantOut
 from app.services.grader import grade_submission
+from app.services.question_generator import generate_similar_question
 from app.services.question_renderer import generate_variant
 from app.services import supermemory_service as sm
 
@@ -385,3 +386,51 @@ def chat_about_question(
     except Exception as e:
         log.exception("Chat failed for variant %d", variant_id)
         raise HTTPException(502, f"Chat failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Generate Similar Question
+# ---------------------------------------------------------------------------
+
+
+class SimilarQuestionResponse(BaseModel):
+    question: QuestionOut
+    assessment_id: int | None = None
+
+
+@router.post("/questions/{question_id}/similar", response_model=SimilarQuestionResponse)
+def create_similar_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Generate a new question similar to the given one (same topic, different content)."""
+    q = _check_question_access(db.get(Question, question_id), db, user)
+    course = db.get(Course, q.course_id)
+    if not course:
+        raise HTTPException(404, "Course not found")
+
+    try:
+        new_question = generate_similar_question(
+            original_question=q,
+            course=course,
+            db=db,
+        )
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(502, f"Similar question generation failed: {e}")
+
+    # Add to the same assessment the original belongs to
+    matched_assessment = None
+    for a in db.query(Assessment).filter(Assessment.course_id == course.id).all():
+        if q.qid in a.question_ids:
+            current_ids = a.question_ids
+            current_ids.append(new_question.qid)
+            a.question_ids = current_ids
+            matched_assessment = a
+            break
+
+    db.commit()
+    return SimilarQuestionResponse(
+        question=QuestionOut.model_validate(new_question),
+        assessment_id=matched_assessment.id if matched_assessment else None,
+    )

@@ -82,6 +82,11 @@ export const api = {
   createVariant: (questionId: number) =>
     request<Variant>(`/questions/${questionId}/variant`, { method: "POST" }),
   getVariant: (variantId: number) => request<Variant>(`/variants/${variantId}`),
+  generateSimilar: (questionId: number) =>
+    request<{ question: Question; assessment_id: number | null }>(
+      `/questions/${questionId}/similar`,
+      { method: "POST" },
+    ),
 
   // Submissions
   submitAnswers: (variantId: number, answers: Record<string, unknown>) =>
@@ -159,7 +164,5 @@ export const api = {
       method: "DELETE",
     }),
 
-  // Knowledge Graph
-  getKnowledgeGraph: () =>
-    request<{ documents: unknown[]; pagination: unknown }>("/courses/graph/all"),
+
 };

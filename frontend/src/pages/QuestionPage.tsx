@@ -40,6 +40,8 @@ export default function QuestionPage() {
     [],
   );
 
+  const [generatingSimilar, setGeneratingSimilar] = useState(false);
+
   // Chat State
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
@@ -189,6 +191,22 @@ export default function QuestionPage() {
           ? "partial"
           : "incorrect";
   const backLink = assessmentId ? `/assessments/${assessmentId}` : "/";
+
+  const handleGenerateSimilar = async () => {
+    if (!id) return;
+    setGeneratingSimilar(true);
+    setError("");
+    try {
+      const result = await api.generateSimilar(Number(id));
+      const newAssessmentId = result.assessment_id ?? assessmentId;
+      const query = newAssessmentId ? `?assessment=${newAssessmentId}` : "";
+      navigate(`/questions/${result.question.id}${query}`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setGeneratingSimilar(false);
+    }
+  };
 
   // Next question in assessment (if applicable)
   const currentIdx = assessmentQuestionIds.indexOf(Number(id));
@@ -379,44 +397,58 @@ export default function QuestionPage() {
 
               <Separator />
 
-              <div className="flex gap-3">
-                {submission == null ? (
-                  <>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-3">
+                  {submission == null ? (
+                    <>
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 font-bold"
+                      >
+                        {submitting ? "Grading..." : "Submit"}
+                      </Button>
+                      <Button variant="outline" onClick={generateNewVariant}>
+                        Reset
+                      </Button>
+                    </>
+                  ) : assessmentId && nextQuestionId ? (
                     <Button
-                      onClick={handleSubmit}
-                      disabled={submitting}
+                      onClick={() =>
+                        navigate(
+                          `/questions/${nextQuestionId}?assessment=${assessmentId}`,
+                        )
+                      }
                       className="flex-1 font-bold"
                     >
-                      {submitting ? "Grading..." : "Submit"}
+                      Next Question &rarr;
                     </Button>
-                    <Button variant="outline" onClick={generateNewVariant}>
-                      Reset
+                  ) : assessmentId && isLastQuestion ? (
+                    <Button
+                      onClick={() => navigate(`/assessments/${assessmentId}`)}
+                      className="flex-1 font-bold"
+                    >
+                      Finish Assessment
                     </Button>
-                  </>
-                ) : assessmentId && nextQuestionId ? (
+                  ) : (
+                    <Button
+                      onClick={generateNewVariant}
+                      className="flex-1 font-bold"
+                    >
+                      New Variant
+                    </Button>
+                  )}
+                </div>
+                {submission != null && (
                   <Button
-                    onClick={() =>
-                      navigate(
-                        `/questions/${nextQuestionId}?assessment=${assessmentId}`,
-                      )
-                    }
-                    className="flex-1 font-bold"
+                    variant="outline"
+                    onClick={handleGenerateSimilar}
+                    disabled={generatingSimilar}
+                    className="w-full"
                   >
-                    Next Question &rarr;
-                  </Button>
-                ) : assessmentId && isLastQuestion ? (
-                  <Button
-                    onClick={() => navigate(`/assessments/${assessmentId}`)}
-                    className="flex-1 font-bold"
-                  >
-                    Finish Assessment
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={generateNewVariant}
-                    className="flex-1 font-bold"
-                  >
-                    New Variant
+                    {generatingSimilar
+                      ? "Generating..."
+                      : "Generate Similar Question"}
                   </Button>
                 )}
               </div>

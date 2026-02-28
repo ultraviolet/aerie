@@ -268,6 +268,52 @@ When asked for MULTIPLE questions, return a JSON object with a "questions" array
 ALL_TYPE_NAMES = list(QUESTION_TYPE_SPECS.keys())
 
 
+def _detect_question_type(question_html: str) -> str | None:
+    """Detect which PrairieLearn element type is used in the question HTML."""
+    try:
+        root = ElementTree.fromstring(f"<root>{question_html}</root>")
+    except ElementTree.ParseError:
+        return None
+    for el in root.iter():
+        if el.tag in QUESTION_TYPE_SPECS:
+            return el.tag
+    return None
+
+
+SIMILAR_QUESTION_SYSTEM_PROMPT = """\
+You are a question generator for an educational platform called prAIrie.
+You create questions in PrairieLearn format.
+
+You are generating a NEW question that is SIMILAR to an existing one.
+The new question must:
+- Use the SAME question type (element) as the original
+- Cover the SAME topic area
+- Have the SAME difficulty level
+- But use DIFFERENT specific content, numbers, examples, or scenarios
+- NOT be a trivial rephrasing — change the substance while keeping the structure
+
+A question consists of:
+1. **question_html**: HTML using PrairieLearn custom elements
+2. **correct_answers**: A JSON object mapping each answers-name to its correct value
+3. **title**: A short descriptive title
+4. **topics**: A list of topic strings
+{topics_instruction}
+5. **tags**: A list of relevant tags
+
+IMPORTANT RULES:
+- Each `answers-name` must have a corresponding key in `correct_answers`
+- Base your question on the COURSE MATERIAL CONTEXT provided below
+- Always include a `<pl-answer-panel>` with a clear explanation
+- Return ONLY valid JSON, no markdown fences
+
+QUESTION TYPE TO USE:
+{type_specs}
+
+Return a single JSON object:
+{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}
+"""
+
+
 def _select_question_types(
     prompt: str, topic: str, num_questions: int, context_summary: str,
 ) -> list[str]:
@@ -700,3 +746,140 @@ def generate_questions(
     db.flush()
 
     return questions, context_chunks
+
+
+def generate_similar_question(
+    original_question: Question,
+    course: Course,
+    db: Session,
+) -> Question:
+    """Generate a new question similar to the original (same topic/type, different content).
+
+    Returns the new Question (flushed to DB — caller must commit).
+    """
+    topic = original_question.topic or ""
+
+    # 1. Detect question type from original HTML
+    detected_type = _detect_question_type(original_question.question_html)
+    if not detected_type:
+        detected_type = "pl-multiple-choice"
+        log.warning("Could not detect question type, defaulting to %s", detected_type)
+    log.info("Generating similar question: type=%s, topic=%r", detected_type, topic)
+
+    # 2. RAG context
+    context_chunks: list[str] = []
+    if course.container_tag and topic:
+        try:
+            queries = _expand_queries(f"practice question about {topic}", topic)
+            context_chunks = _retrieve_context(queries, course.container_tag)
+        except Exception:
+            log.exception("RAG retrieval failed for similar question")
+
+    # 3. Build system prompt with ONE type spec
+    type_spec = QUESTION_TYPE_SPECS.get(detected_type, "")
+    existing_topics = course.topics
+    if existing_topics:
+        topic_list = ", ".join(f'"{t}"' for t in existing_topics)
+        topics_instruction = (
+            f"   The course already has these topics: [{topic_list}]. "
+            "Reuse existing topics when they fit."
+        )
+    else:
+        topics_instruction = "   Create clear, concise topic names."
+
+    system_prompt = SIMILAR_QUESTION_SYSTEM_PROMPT.format(
+        type_specs=type_spec,
+        topics_instruction=topics_instruction,
+    )
+
+    # 4. User prompt with original question as reference + RAG
+    context_section = ""
+    if context_chunks:
+        context_section = (
+            "COURSE MATERIAL CONTEXT:\n"
+            + "\n---\n".join(context_chunks)
+            + "\n\n"
+        )
+
+    user_prompt = (
+        f"{context_section}"
+        f"ORIGINAL QUESTION (generate something SIMILAR but DIFFERENT):\n"
+        f"Title: {original_question.title}\n"
+        f"Topic: {topic}\n"
+        f"HTML:\n{original_question.question_html}\n\n"
+        f"Generate ONE new question. Same type ({detected_type}), same topic, "
+        f"different content/numbers/examples."
+    )
+
+    # 5. Single Gemini call
+    client = _get_gemini_client()
+    response = client.models.generate_content(
+        model="gemini-3-pro-preview",
+        contents=user_prompt,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.8,
+            max_output_tokens=4096,
+            response_mime_type="application/json",
+        ),
+    )
+
+    # 6. Parse
+    if (
+        response.candidates
+        and response.candidates[0].finish_reason
+        and str(response.candidates[0].finish_reason) not in ("STOP", "FinishReason.STOP", "1")
+    ):
+        raise ValueError("Gemini response was truncated")
+
+    raw = response.text.strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise ValueError("Gemini returned invalid JSON")
+
+    if "questions" in data and isinstance(data["questions"], list):
+        data = data["questions"][0]
+
+    # 7. Fix correct_answers
+    data["correct_answers"] = _fix_correct_answers(
+        data.get("question_html", ""),
+        data.get("correct_answers", {}),
+    )
+
+    question_html = data.get("question_html", "")
+    if not question_html:
+        raise ValueError("Generated question has empty HTML")
+
+    # 8. Create Question row
+    item_topics = data.get("topics", [])
+    if isinstance(item_topics, str):
+        item_topics = [item_topics]
+    if not item_topics:
+        item_topics = [topic] if topic else []
+
+    qid = f"gen_{uuid.uuid4().hex[:8]}"
+    new_question = Question(
+        course_id=course.id,
+        qid=qid,
+        uuid=str(uuid.uuid4()),
+        title=data.get("title", "Similar Question"),
+        topic=item_topics[0] if item_topics else topic,
+        question_html=question_html,
+        has_server_py=False,
+        single_variant=True,
+        directory="",
+    )
+    tags = data.get("tags", original_question.tags + ["similar-question"])
+    new_question.tags = tags if isinstance(tags, list) else [str(tags)]
+    new_question.stored_correct_answers = data.get("correct_answers", {})
+    db.add(new_question)
+    db.flush()
+
+    # 9. Update course topics
+    existing_set = set(existing_topics)
+    new_topics = [t for t in item_topics if t and t not in existing_set]
+    if new_topics:
+        course.topics = existing_topics + new_topics
+
+    return new_question
