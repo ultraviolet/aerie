@@ -104,13 +104,6 @@ export default function CoursePage() {
           </Button>
         </Link>
         <div className="flex flex-col gap-1 w-full">
-          <Badge
-            variant="secondary"
-            className="w-fit font-mono text-[10px] uppercase tracking-widest mb-1"
-          >
-            Course Overview
-          </Badge>
-
           {/* INLINE DELETE CONFIRMATION */}
           {isConfirmingDelete ? (
             <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mt-2 animate-in fade-in zoom-in-95 duration-200">
@@ -331,7 +324,7 @@ function MaterialsTab({
           onClick={() => setIsGenerating(true)}
           className="font-bold shadow-md"
         >
-          <Plus className="size-4 mr-2" /> Add New Material
+          <Plus className="size-4 mr-2" /> Add new material
         </Button>
       </div>
 
