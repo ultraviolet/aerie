@@ -1,4 +1,4 @@
-import type { Assessment, AssessmentDetail, AuthResponse, Course, CourseDocument, GenerateRequest, GenerateResponse, Question, Submission, Variant } from "./types";
+import type { Assessment, AssessmentDetail, AuthResponse, Course, CourseDocument, GenerateRequest, GenerateResponse, Question, Submission, Variant, Topic } from "./types";
 
 const BASE = "http://localhost:8000/api";
 
@@ -41,6 +41,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+    
 
   // Courses
   listCourses: () => request<Course[]>("/courses"),
@@ -67,6 +68,15 @@ export const api = {
     request<Submission>(`/variants/${variantId}/submit`, {
       method: "POST",
       body: JSON.stringify({ submitted_answers: answers }),
+    }),
+  // Topics
+  listTopics: (courseId: number) =>
+    request<Topic[]>(`/courses/${courseId}/topics`),
+
+  createTopic: (courseId: number, name: string) =>
+    request<Topic>(`/courses/${courseId}/topics`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
     }),
 
   // Documents

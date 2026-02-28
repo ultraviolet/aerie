@@ -31,7 +31,8 @@ export interface Question {
   course_id: number;
   qid: string;
   title: string;
-  topic: string;
+  topic_id: number
+  topic?: Topic
   tags: string[];
   has_server_py: boolean;
   single_variant: boolean;
@@ -80,4 +81,10 @@ export interface GenerateRequest {
 export interface GenerateResponse {
   questions: Question[];
   context_used: string[];
+}
+
+export type Topic = {
+  id: number
+  name: string
+  course_id: number
 }

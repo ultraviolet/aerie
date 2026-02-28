@@ -8,18 +8,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import type { Topic } from "@/types"
 
 export default function CoursePage() {
   const { id } = useParams<{ id: string }>();
   const courseId = Number(id);
   const [course, setCourse] = useState<Course | null>(null);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([])
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!id) return;
     api.getCourse(courseId).then(setCourse).catch((e) => setError(String(e)));
     api.listAssessments(courseId).then(setAssessments).catch((e) => setError(String(e)));
+    api.listTopics(courseId).then(setTopics);
   }, [id, courseId]);
 
   if (error) return <p className="text-destructive">{error}</p>;
@@ -41,6 +44,7 @@ export default function CoursePage() {
         <TabsList>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="topics">Topics</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
         </TabsList>
 
@@ -52,6 +56,9 @@ export default function CoursePage() {
           <DocumentsTab courseId={courseId} />
         </TabsContent>
 
+        <TabsContent value="topics" className="mt-4">
+          <TopicsTab topics={topics} />
+        </TabsContent>
         <TabsContent value="generate" className="mt-4">
           <GenerateTab
             courseId={courseId}
@@ -91,6 +98,19 @@ function AssessmentsTab({ assessments }: { assessments: Assessment[] }) {
           </Card>
         </Link>
       ))}
+    </div>
+  );
+}
+
+/* topics tab */ 
+
+function TopicsTab({ topics }: { topics: Topic[] }) {
+  if (topics.length === 0) {
+    return <p className="text-muted-foreground">No topics found for this course.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
     </div>
   );
 }
@@ -302,10 +322,10 @@ function GenerateTab({
                     <Badge variant="secondary">AI Generated</Badge>
                     <CardTitle className="text-base">{q.title}</CardTitle>
                   </div>
-                  <CardDescription>
+                  {/* <CardDescription>
                     {q.topic && <span>{q.topic} &middot; </span>}
                     Click to try it
-                  </CardDescription>
+                  </CardDescription> */}
                 </CardHeader>
               </Card>
             </Link>
