@@ -1,7 +1,8 @@
-"""Load a PrairieLearn-format course directory into the database."""
+"""Create and load PrairieLearn-format course directories."""
 
 import json
 import logging
+import re
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -10,10 +11,70 @@ from app.models import Assessment, Course, Question
 
 log = logging.getLogger(__name__)
 
+# Base directory for newly created courses (project-relative)
+COURSES_BASE = Path(__file__).resolve().parent.parent.parent / "data" / "courses"
+
 
 def _read_json(path: Path) -> dict:
     with open(path) as f:
         return json.load(f)
+
+
+def _slugify(title: str) -> str:
+    """Convert a title to a URL-friendly slug."""
+    slug = title.lower().strip()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "untitled"
+
+
+def create_course(db: Session, title: str, user_id: int) -> Course:
+    """Create a new course with a PrairieLearn skeleton directory."""
+    slug = _slugify(title)
+    course_dir = COURSES_BASE / str(user_id) / slug
+
+    # Avoid collisions by appending a number
+    base_dir = course_dir
+    counter = 2
+    while course_dir.exists():
+        course_dir = base_dir.parent / f"{base_dir.name}-{counter}"
+        counter += 1
+
+    # Create PrairieLearn skeleton
+    course_dir.mkdir(parents=True)
+    (course_dir / "questions").mkdir()
+    (course_dir / "courseInstances" / "Default" / "assessments").mkdir(parents=True)
+
+    info = {"name": slug.upper().replace("-", "_"), "title": title}
+    (course_dir / "infoCourse.json").write_text(json.dumps(info, indent=2))
+
+    # Create DB record
+    course = Course(
+        name=info["name"],
+        title=title,
+        path=str(course_dir),
+        user_id=user_id,
+    )
+    db.add(course)
+    db.flush()
+
+    course.container_tag = f"course_{course.id}"
+    db.flush()
+
+    # Create default empty assessment
+    a = Assessment(
+        course_id=course.id,
+        tid="default",
+        title="All Questions",
+        type="Homework",
+    )
+    a.question_ids = []
+    db.add(a)
+
+    db.commit()
+    db.refresh(course)
+    return course
 
 
 def load_course(db: Session, course_path: str, user_id: int) -> Course:

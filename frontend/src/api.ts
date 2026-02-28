@@ -44,10 +44,10 @@ export const api = {
 
   // Courses
   listCourses: () => request<Course[]>("/courses"),
-  loadCourse: (path: string) =>
-    request<Course>("/courses/load", {
+  createCourse: (title: string) =>
+    request<Course>("/courses", {
       method: "POST",
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ title }),
     }),
   getCourse: (id: number) => request<Course>(`/courses/${id}`),
 

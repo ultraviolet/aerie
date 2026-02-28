@@ -5,7 +5,6 @@ import {
   Plus,
   LayoutGrid,
   GraduationCap,
-  Save,
   FileText,
   BrainCircuit,
   BookOpen,
@@ -29,7 +28,7 @@ export default function DashboardPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [coursePath, setCoursePath] = useState("");
+  const [courseTitle, setCourseTitle] = useState("");
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
@@ -40,10 +39,10 @@ export default function DashboardPage() {
     setIsLoading(true);
 
     try {
-      const newCourse = await api.loadCourse(coursePath);
+      const newCourse = await api.createCourse(courseTitle);
       setCourses((prev) => [...prev, newCourse]);
       setShowCreateForm(false);
-      setCoursePath("");
+      setCourseTitle("");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -84,25 +83,22 @@ export default function DashboardPage() {
         <div className="max-w-2xl mx-auto animate-in zoom-in-95 duration-500">
           <Card>
             <CardHeader>
-              <CardTitle>Load Course Path</CardTitle>
-              <CardDescription>
-                Enter the absolute path to your PrairieLearn directory.
+              <CardTitle>Create New Course</CardTitle>
+              <CardDescription className="text-slate-400">
+                Give your course a name to get started.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleCreate}>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label
-                    htmlFor="path"
-                    className="text-slate-400 uppercase text-[10px] tracking-widest font-bold"
-                  >
-                    Directory Path
+                  <Label htmlFor="title" className="text-slate-200">
+                    Course Title
                   </Label>
                   <Input
-                    id="path"
-                    placeholder="/home/user/courses/my-course"
-                    value={coursePath}
-                    onChange={(e) => setCoursePath(e.target.value)}
+                    id="title"
+                    placeholder="e.g. Linear Algebra 101"
+                    value={courseTitle}
+                    onChange={(e) => setCourseTitle(e.target.value)}
                     required
                   />
                 </div>
@@ -121,13 +117,9 @@ export default function DashboardPage() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  isLoading={isLoading}
-                  className="min-w-[140px]"
-                >
-                  <Save className="mr-2 size-4" />
-                  Load Course
+                <Button type="submit" isLoading={isLoading}>
+                  <Plus className="mr-2 size-4" />
+                  Create Course
                 </Button>
               </CardFooter>
             </form>

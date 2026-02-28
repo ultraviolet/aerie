@@ -32,8 +32,8 @@ class UserOut(BaseModel):
 # -- Requests --
 
 
-class CourseLoadRequest(BaseModel):
-    path: str
+class CourseCreateRequest(BaseModel):
+    title: str
 
 
 class SubmitRequest(BaseModel):

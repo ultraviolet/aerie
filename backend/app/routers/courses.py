@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Course, User
-from app.schemas import CourseLoadRequest, CourseOut
-from app.services.course_loader import load_course
+from app.schemas import CourseCreateRequest, CourseOut
+from app.services.course_loader import create_course
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -19,21 +19,17 @@ def get_course(course_id: int, db: Session = Depends(get_db), user: User = Depen
         raise HTTPException(status_code=404, detail="Course not found")
     return course
 
-@router.post("/load", response_model=CourseOut)
-def load_course_from_path(
-    req: CourseLoadRequest,
+@router.post("/", response_model=CourseOut)
+def create_course_endpoint(
+    req: CourseCreateRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if not req.title.strip():
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
     try:
-        # This calls your service that looks for infoCourse.json
-        course = load_course(db, req.path, user.id)
-        if not course:
-            raise HTTPException(status_code=500, detail="Course loaded but not returned")
+        course = create_course(db, req.title.strip(), user.id)
         return course
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Log the actual error to your terminal so you can see why it failed
-        print(f"Error loading course: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error during scan")
+        print(f"Error creating course: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
