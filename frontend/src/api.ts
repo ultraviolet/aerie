@@ -1,10 +1,23 @@
-import type { Assessment, AssessmentDetail, AuthResponse, Course, CourseDocument, GenerateRequest, GenerateResponse, Question, Submission, Variant } from "./types";
+import type {
+  Assessment,
+  AssessmentDetail,
+  AuthResponse,
+  Course,
+  CourseDocument,
+  GenerateRequest,
+  GenerateResponse,
+  Question,
+  Submission,
+  Variant,
+} from "./types";
 
 const BASE = "http://localhost:8000/api";
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem("prairie_token");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -54,7 +67,8 @@ export const api = {
   // Assessments
   listAssessments: (courseId: number) =>
     request<Assessment[]>(`/courses/${courseId}/assessments`),
-  getAssessment: (id: number) => request<AssessmentDetail>(`/assessments/${id}`),
+  getAssessment: (id: number) =>
+    request<AssessmentDetail>(`/assessments/${id}`),
 
   // Questions & Variants
   getQuestion: (id: number) => request<Question>(`/questions/${id}`),
@@ -70,7 +84,10 @@ export const api = {
     }),
 
   // Documents
-  uploadDocument: async (courseId: number, file: File): Promise<CourseDocument> => {
+  uploadDocument: async (
+    courseId: number,
+    file: File,
+  ): Promise<CourseDocument> => {
     const token = localStorage.getItem("prairie_token");
     const form = new FormData();
     form.append("file", file);

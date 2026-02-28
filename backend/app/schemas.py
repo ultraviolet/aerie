@@ -45,10 +45,10 @@ class SubmitRequest(BaseModel):
 
 class CourseOut(BaseModel):
     id: int
-    name: str
-    title: str
-    path: str
-    container_tag: str = ""
+    name: str           # Stored title
+    path: str           # URL path
+    container_tag: str  # Auto-generated slug
+    # created_at: Optional[datetime] = None # Add if you have this in DB
 
     model_config = {"from_attributes": True}
 

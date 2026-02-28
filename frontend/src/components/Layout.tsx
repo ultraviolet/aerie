@@ -17,7 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Restores your side padding and max-width, but keeps the scroll lock
     mainClasses += "mx-auto w-full max-w-5xl px-6 py-8 overflow-hidden";
   } else if (isQuestionPage) {
-    // Full screen, no padding, no scroll (your original setup)
+    // Full screen, no padding, no scroll
     mainClasses += "overflow-hidden";
   } else {
     // Standard pages: centered, padded, and scrollable
@@ -26,34 +26,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
-      <nav className="flex shrink-0 items-center gap-6 border-b border-slate-800 bg-slate-900 px-6 py-3">
+      {/* Removed border-b, changed py-3 to py-4 for a bit more breathing room */}
+      <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
         <Link
           to="/"
-          className="text-lg font-bold tracking-tight text-white no-underline hover:text-white/90"
+          className="text-lg font-bold tracking-tight text-slate-900 transition-colors hover:text-slate-600 no-underline"
         >
           prAIrie
         </Link>
-        <Link
-          to="/"
-          className="text-sm text-slate-400 no-underline hover:text-white"
-        >
-          Dashboard
-        </Link>
-        <div className="ml-auto flex items-center gap-3">
-          {user && (
-            <>
-              <span className="text-sm text-slate-400">{user.username}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-400 hover:text-white"
-                onClick={logout}
-              >
-                Log out
-              </Button>
-            </>
-          )}
-        </div>
+
+        {user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-sm font-medium text-slate-900 bg-transparent px-0 hover:bg-transparent hover:text-slate-600 transition-colors"
+            onClick={logout}
+          >
+            Log out
+          </Button>
+        )}
       </nav>
 
       <main className={mainClasses}>{children}</main>
