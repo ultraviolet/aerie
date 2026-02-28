@@ -113,4 +113,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify(req),
     }),
+
+  // Question Chat
+  chatAboutQuestion: (
+    variantId: number,
+    body: {
+      message: string;
+      history: { role: string; content: string }[];
+      question_html: string;
+      submitted_answers: Record<string, unknown>;
+      correct_answers: Record<string, unknown>;
+      score: number | null;
+      feedback: Record<string, unknown>;
+    },
+  ) =>
+    request<{ reply: string }>(`/variants/${variantId}/chat`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

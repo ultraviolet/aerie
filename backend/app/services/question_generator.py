@@ -325,6 +325,11 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
             return queries[:5]
         log.warning("Query expansion returned unexpected structure: %s", raw[:300])
     except (json.JSONDecodeError, TypeError):
+        # Fallback: try to extract quoted strings from malformed JSON
+        extracted = re.findall(r'"([^"]{5,})"', raw)
+        if extracted:
+            log.warning("Query expansion JSON malformed, extracted %d strings from raw", len(extracted))
+            return extracted[:5]
         log.warning("Query expansion failed to parse (raw=%s), falling back to raw prompt", raw[:300])
 
     return [prompt]

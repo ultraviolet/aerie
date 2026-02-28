@@ -91,26 +91,37 @@ export default function QuestionPage() {
     }
   };
 
+  const [chatLoading, setChatLoading] = useState(false);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !variant || !submission) return;
 
     const userMsg = chatInput;
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    const currentHistory = [...messages, { role: "user" as const, content: userMsg }];
+    setMessages(currentHistory);
     setChatInput("");
+    setChatLoading(true);
 
-    // Placeholder for AI Response logic
-    // You would typically call api.chatWithQuestion(id, userMsg, submission)
-    setTimeout(() => {
+    try {
+      const res = await api.chatAboutQuestion(variant.id, {
+        message: userMsg,
+        history: messages, // send previous messages (before this one)
+        question_html: variant.rendered_html,
+        submitted_answers: answers,
+        correct_answers: submission.feedback?.correct_answers as Record<string, unknown> ?? {},
+        score: submission.score,
+        feedback: submission.feedback as Record<string, unknown> ?? {},
+      });
+      setMessages((prev) => [...prev, { role: "ai", content: res.reply }]);
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: "ai",
-          content:
-            "That's a great question about this automata problem. Let me explain...",
-        },
+        { role: "ai", content: `Error: ${err instanceof Error ? err.message : "Something went wrong"}` },
       ]);
-    }, 600);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -247,6 +258,13 @@ export default function QuestionPage() {
                         </div>
                       </div>
                     ))}
+                    {chatLoading && (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl px-4 py-2 bg-white border border-slate-200 text-slate-400 text-sm shadow-sm">
+                          Thinking...
+                        </div>
+                      </div>
+                    )}
                     <div ref={scrollRef} />
                   </div>
                 )}
@@ -261,9 +279,10 @@ export default function QuestionPage() {
                   className="relative flex items-center max-w-3xl mx-auto w-full"
                 >
                   <Input
-                    placeholder="Ask a question about this problem..."
+                    placeholder={chatLoading ? "Thinking..." : "Ask a question about this problem..."}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
+                    disabled={chatLoading}
                     className="pr-10 bg-slate-50 border-slate-200 focus-visible:ring-slate-400 rounded-xl h-11"
                   />
                   <Button
@@ -271,7 +290,7 @@ export default function QuestionPage() {
                     variant="ghost"
                     className="absolute right-1 hover:bg-transparent"
                     type="submit"
-                    disabled={!chatInput.trim()}
+                    disabled={!chatInput.trim() || chatLoading}
                   >
                     <Send className="size-4 text-slate-900" />
                   </Button>
