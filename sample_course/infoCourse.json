@@ -1,0 +1,11 @@
+{
+    "name": "DEMO101",
+    "title": "prAIrie Demo Course",
+    "topics": [
+        {"name": "Arithmetic", "color": "blue1"},
+        {"name": "Logic", "color": "green1"}
+    ],
+    "tags": [
+        {"name": "demo", "color": "gray1"}
+    ]
+}
