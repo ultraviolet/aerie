@@ -1,5 +1,10 @@
 import { type ReactNode, useMemo } from "react";
-import Markdown from "./elements/Markdown";
+// Import math plugins (ensure these are installed via npm)
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css"; // Don't forget the CSS!
+
 import PLAnswerPanel from "./elements/PLAnswerPanel";
 import PLCode from "./elements/PLCode";
 import PLFigure from "./elements/PLFigure";
@@ -13,16 +18,21 @@ interface Props {
   showSubmission: boolean;
 }
 
-/**
- * Renders the read-only content of a PrairieLearn question (left panel).
- * Skips all input elements — those go in QuestionInputs (right panel).
- */
-export default function QuestionContent({ html, showAnswer, showSubmission }: Props) {
+export default function QuestionContent({
+  html,
+  showAnswer,
+  showSubmission,
+}: Props) {
   const parsed = useMemo(() => parseHtml(html), [html]);
 
-  if (!parsed) return <div className="text-muted-foreground">No question content</div>;
+  if (!parsed)
+    return <div className="text-muted-foreground">No question content</div>;
 
-  return <>{renderContentNode(parsed, showAnswer, showSubmission)}</>;
+  return (
+    <div className="prose prose-slate max-w-none dark:prose-invert">
+      {renderContentNode(parsed, showAnswer, showSubmission)}
+    </div>
+  );
 }
 
 function renderContentNode(
@@ -30,8 +40,16 @@ function renderContentNode(
   showAnswer: boolean,
   showSubmission: boolean,
 ): ReactNode {
+  // --- FIX 1: Wrap plain text in Markdown to catch inline LaTeX ---
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent;
+    const text = node.textContent ?? "";
+    if (!text.trim()) return text;
+
+    return (
+      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+        {text}
+      </ReactMarkdown>
+    );
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
@@ -39,7 +57,6 @@ function renderContentNode(
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
 
-  // Skip input elements — they're rendered in the right panel
   if (isInputTag(tag)) return null;
 
   const children = Array.from(el.childNodes).map((child, i) => (
@@ -56,10 +73,16 @@ function renderContentNode(
       return <PLAnswerPanel show={showAnswer}>{children}</PLAnswerPanel>;
 
     case "pl-submission-panel":
-      return <PLSubmissionPanel show={showSubmission}>{children}</PLSubmissionPanel>;
+      return (
+        <PLSubmissionPanel show={showSubmission}>{children}</PLSubmissionPanel>
+      );
 
     case "pl-code":
-      return <PLCode language={el.getAttribute("language") ?? undefined}>{textContent}</PLCode>;
+      return (
+        <PLCode language={el.getAttribute("language") ?? undefined}>
+          {textContent}
+        </PLCode>
+      );
 
     case "pl-figure":
       return (
@@ -70,12 +93,21 @@ function renderContentNode(
         />
       );
 
+    // --- FIX 2: Ensure the <markdown> tag also supports math ---
     case "markdown":
-      return <Markdown>{textContent}</Markdown>;
+      return (
+        <ReactMarkdown
+          remarkPlugins={[remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+        >
+          {textContent}
+        </ReactMarkdown>
+      );
 
     default:
       if (SAFE_HTML_TAGS.has(tag)) {
         const Tag = tag as keyof React.JSX.IntrinsicElements;
+        // @ts-ignore - dynamic tag
         return <Tag>{children}</Tag>;
       }
       return <>{children}</>;

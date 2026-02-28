@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/api";
 import QuestionContent from "@/components/QuestionContent";
@@ -6,9 +6,18 @@ import QuestionInputs from "@/components/QuestionInputs";
 import type { Question, Submission, Variant } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Send } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 
 export default function QuestionPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,11 +31,19 @@ export default function QuestionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Chat State
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<
+    { role: "user" | "ai"; content: string }[]
+  >([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const generateVariant = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setSubmission(null);
     setAnswers({});
+    setMessages([]); // Reset chat on new variant
     setError("");
     try {
       const [q, v] = await Promise.all([
@@ -64,7 +81,37 @@ export default function QuestionPage() {
     }
   };
 
-  const scorePercent = submission ? ((submission.score ?? 0) * 100).toFixed(0) : null;
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMsg = chatInput;
+    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    setChatInput("");
+
+    // Placeholder for AI Response logic
+    // You would typically call api.chatWithQuestion(id, userMsg, submission)
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content:
+            "That's a great question about this automata problem. Let me explain...",
+        },
+      ]);
+    }, 600);
+  };
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const scorePercent = submission
+    ? ((submission.score ?? 0) * 100).toFixed(0)
+    : null;
   const scoreVariant =
     submission == null
       ? null
@@ -73,144 +120,218 @@ export default function QuestionPage() {
         : (submission.score ?? 0) > 0
           ? "partial"
           : "incorrect";
-
   const backLink = assessmentId ? `/assessments/${assessmentId}` : "/";
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        Generating question variant...
+      <div className="flex h-full items-center justify-center text-muted-foreground font-medium">
+        Generating variant...
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
-      <div className="flex h-full items-center justify-center text-destructive">{error}</div>
+      <div className="flex h-full items-center justify-center text-destructive">
+        {error}
+      </div>
     );
-  }
-
-  if (!variant) {
+  if (!variant)
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         No variant available.
       </div>
     );
-  }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Question header bar */}
-      <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2">
+    <div className="flex h-full flex-col bg-background">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b bg-white/50 backdrop-blur px-4 py-2 shrink-0">
         <Link to={backLink}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
+          <Button variant="ghost" size="sm">
             &larr; Back
           </Button>
         </Link>
         <Separator orientation="vertical" className="h-5" />
-        <h2 className="text-sm font-semibold truncate">{question?.title ?? "Question"}</h2>
+        <h2 className="text-sm font-bold truncate text-slate-900">
+          {question?.title ?? "Question"}
+        </h2>
         {question?.topic && (
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="secondary" className="font-mono text-[10px]">
             {question.topic}
           </Badge>
         )}
       </div>
 
-      {/* Split pane */}
-      <ResizablePanelGroup orientation="horizontal" className="flex-1">
-        {/* Left panel — Question content / Answer explanation */}
-        <ResizablePanel defaultSize={50} minSize={30}>
-          <div className="flex h-full flex-col">
-            <div className="border-b bg-muted/20 px-4 py-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
+        {/* Left Panel: Content + Chat */}
+        <ResizablePanel
+          defaultSize={50}
+          minSize={30}
+          className="flex flex-col h-full bg-slate-50/30"
+        >
+          <div className="flex h-full flex-col min-h-0">
+            {/* 1. Header (Fixed) */}
+            <div className="border-b bg-slate-100/50 px-4 py-2 shrink-0">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                 {submission ? "Answer & Explanation" : "Problem"}
               </span>
             </div>
-            <ScrollArea className="flex-1">
+
+            {/* 2. Content Area (Scrollable) */}
+            <ScrollArea className="flex-1 min-h-0">
               <div className="p-6">
                 <QuestionContent
                   html={variant.rendered_html}
                   showAnswer={submission != null}
                   showSubmission={submission != null}
                 />
+
+                {/* Chat History renders inside the scrollable area */}
+                {submission && messages.length > 0 && (
+                  <div className="mt-8 space-y-4 pb-12">
+                    <Separator className="my-8" />
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-1 rounded bg-primary/10 text-primary">
+                        <Send className="size-3" />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Discussion
+                      </span>
+                    </div>
+                    {messages.map((m, i) => (
+                      <div
+                        key={i}
+                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                            m.role === "user"
+                              ? "bg-slate-900 text-white"
+                              : "bg-white border border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          {/* Move the prose classes here to a wrapper. 
+          This ensures the Markdown content is styled without 
+          triggering TypeScript errors on the ReactMarkdown component.
+      */}
+                          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:bg-slate-800">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {m.content}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={scrollRef} />
+                  </div>
+                )}
               </div>
             </ScrollArea>
+
+            {/* 3. Fixed Chat Input (Outside ScrollArea, at bottom of Panel) */}
+            {submission && (
+              <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+                <form
+                  onSubmit={handleSendMessage}
+                  className="relative flex items-center max-w-3xl mx-auto w-full"
+                >
+                  <Input
+                    placeholder="Ask a question about this problem..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="pr-10 bg-slate-50 border-slate-200 focus-visible:ring-slate-400 rounded-xl h-11"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute right-1 hover:bg-transparent"
+                    type="submit"
+                    disabled={!chatInput.trim()}
+                  >
+                    <Send className="size-4 text-slate-900" />
+                  </Button>
+                </form>
+              </div>
+            )}
           </div>
         </ResizablePanel>
 
         <ResizableHandle withHandle />
 
-        {/* Right panel — Input fields + submission */}
-        <ResizablePanel defaultSize={50} minSize={30}>
-          <div className="flex h-full flex-col">
-            <div className="border-b bg-muted/20 px-4 py-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Your Answer
-              </span>
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-6 space-y-6">
-                {/* Input fields */}
-                <QuestionInputs
-                  html={variant.rendered_html}
-                  answers={answers}
-                  onAnswerChange={handleAnswerChange}
-                  disabled={submission != null}
-                />
+        {/* Right Panel: Inputs */}
+        <ResizablePanel
+          defaultSize={50}
+          minSize={30}
+          className="flex flex-col h-full bg-white"
+        >
+          <div className="border-b bg-slate-50/50 px-4 py-2 shrink-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Your Answer
+            </span>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-6 space-y-6">
+              <QuestionInputs
+                html={variant.rendered_html}
+                answers={answers}
+                onAnswerChange={handleAnswerChange}
+                disabled={submission != null}
+              />
 
-                <Separator />
+              <Separator />
 
-                {/* Action buttons */}
-                <div className="flex gap-3">
-                  {submission == null ? (
-                    <Button onClick={handleSubmit} disabled={submitting} className="flex-1">
-                      {submitting ? "Grading..." : "Submit"}
-                    </Button>
-                  ) : (
-                    <Button onClick={generateVariant} className="flex-1">
-                      New Variant
-                    </Button>
-                  )}
-                  {submission == null && (
-                    <Button variant="outline" onClick={generateVariant}>
-                      Reset
-                    </Button>
-                  )}
-                </div>
-
-                {/* Score + feedback display */}
-                {submission != null && (
-                  <div className="space-y-3">
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-lg font-bold ${
-                        scoreVariant === "correct"
-                          ? "bg-green-100 text-green-800"
-                          : scoreVariant === "partial"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {scoreVariant === "correct" && "Correct! "}
-                      {scoreVariant === "partial" && "Partial Credit "}
-                      {scoreVariant === "incorrect" && "Incorrect "}
-                      {scorePercent}%
-                    </div>
-
-                    {submission.feedback &&
-                      (submission.feedback as Record<string, string>).message && (
-                        <p className="text-sm text-muted-foreground">
-                          {(submission.feedback as Record<string, string>).message}
-                        </p>
-                      )}
-
-                    <Button variant="outline" size="sm" onClick={generateVariant}>
-                      Try Another Variant
-                    </Button>
-                  </div>
+              <div className="flex gap-3">
+                {submission == null ? (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="flex-1 font-bold"
+                  >
+                    {submitting ? "Grading..." : "Submit"}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={generateVariant}
+                    className="flex-1 font-bold"
+                  >
+                    New Variant
+                  </Button>
+                )}
+                {submission == null && (
+                  <Button variant="outline" onClick={generateVariant}>
+                    Reset
+                  </Button>
                 )}
               </div>
-            </ScrollArea>
-          </div>
+
+              {submission != null && (
+                <div className="space-y-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-black ${
+                      scoreVariant === "correct"
+                        ? "text-green-600"
+                        : scoreVariant === "partial"
+                          ? "text-amber-600"
+                          : "text-red-600"
+                    }`}
+                  >
+                    {scoreVariant === "correct" && "Correct! "}
+                    {scoreVariant === "partial" && "Partial Credit "}
+                    {scoreVariant === "incorrect" && "Incorrect "}
+                    {scorePercent}%
+                  </div>
+                  {submission.feedback &&
+                    (submission.feedback as any).message && (
+                      <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                        {(submission.feedback as any).message}
+                      </p>
+                    )}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

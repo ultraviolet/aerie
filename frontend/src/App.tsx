@@ -7,6 +7,7 @@ import CoursePage from "@/pages/CoursePage";
 import DashboardPage from "@/pages/DashboardPage";
 import QuestionPage from "@/pages/QuestionPage";
 import CreateCourseForm from "./components/elements/CreateCourseForm";
+import "katex/dist/katex.min.css";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
