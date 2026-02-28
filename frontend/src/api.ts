@@ -178,10 +178,16 @@ export const api = {
   // Insights
   getInsights: (courseId: number) =>
     request<{
-      strengths: string[];
-      weaknesses: string[];
+      strengths: unknown[];
+      weaknesses: unknown[];
       recent_activity: string[];
     }>(`/courses/${courseId}/insights`),
+
+  getCourseGraph: (courseId: number) =>
+    request<{
+      documents: unknown[];
+      pagination: { currentPage: number; limit: number; totalItems: number; totalPages: number };
+    }>(`/courses/${courseId}/graph`),
 
   // Question Chat
   chatAboutQuestion: (

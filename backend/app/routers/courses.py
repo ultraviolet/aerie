@@ -167,7 +167,7 @@ def _process_insights_with_gemini(raw: dict) -> dict:
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 temperature=0.2,
-                max_output_tokens=2048,
+                max_output_tokens=8192,
                 response_mime_type="application/json",
             ),
         )
@@ -215,6 +215,28 @@ def get_insights(course_id: int, db: Session = Depends(get_db), user: User = Dep
         return {"strengths": [], "weaknesses": [], "recent_activity": []}
 
     return _process_insights_with_gemini(raw)
+
+
+@router.get("/{course_id}/graph")
+def get_course_graph(
+    course_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Fetch the memory graph for a single course (course materials + user learning memories)."""
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    empty = {"documents": [], "pagination": {"currentPage": 1, "limit": 300, "totalItems": 0, "totalPages": 0}}
+    tags = [f"user_{user.id}_course_{course.id}"]
+    if course.container_tag:
+        tags.append(course.container_tag)
+    try:
+        return sm.get_graph_data(tags, limit=300)
+    except Exception:
+        log.exception("Failed to fetch graph for course %s", course.id)
+        return empty
+
 
 @router.patch("/{course_id}", response_model=CourseOut)
 def update_course_endpoint(

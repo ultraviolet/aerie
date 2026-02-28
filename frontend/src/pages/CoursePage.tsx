@@ -906,9 +906,14 @@ function InfoTab({ courseId }: { courseId: number }) {
     api
       .getInsights(courseId)
       .then((data) => {
-        setStrengths(data.strengths ?? []);
-        setWeaknesses(data.weaknesses ?? []);
-        setRecentActivity(data.recent_activity ?? []);
+        // Normalize: Gemini may return {text, memory_ids} objects or plain strings
+        const toStrings = (items: unknown[]): string[] =>
+          (items ?? []).map((x) =>
+            typeof x === "string" ? x : (x as { text: string }).text ?? "",
+          );
+        setStrengths(toStrings(data.strengths));
+        setWeaknesses(toStrings(data.weaknesses));
+       setRecentActivity(data.recent_activity ?? []);
       })
       .catch(() => {
         setStrengths([]);
@@ -933,6 +938,14 @@ function InfoTab({ courseId }: { courseId: number }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-12 pr-2 space-y-6">
+      {/* Memory Graph — full width */}
+      <iframe
+        src={`/embed/memory-graph?courseId=${courseId}`}
+        className="w-full h-[500px] border rounded-lg"
+        title="Memory Graph"
+      />
+
+      {/* Insights */}
       {isEmpty ? (
         <Card className="border-dashed shadow-none bg-slate-50/50">
           <CardContent className="py-12 text-center">

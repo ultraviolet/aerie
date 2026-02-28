@@ -1,16 +1,24 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import Layout from "@/components/Layout";
 import AssessmentPage from "@/pages/AssessmentPage";
 import AuthPage from "@/pages/AuthPage";
 import CoursePage from "@/pages/CoursePage";
 import DashboardPage from "@/pages/DashboardPage";
+import MemoryGraphEmbed from "@/pages/MemoryGraphEmbed";
 import QuestionPage from "@/pages/QuestionPage";
 import CreateCourseForm from "./components/elements/CreateCourseForm";
 import "katex/dist/katex.min.css";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
+  // Render embed routes without Layout (used in iframes)
+  if (location.pathname === "/embed/memory-graph") {
+    if (!user && !loading) return <AuthPage />;
+    return <MemoryGraphEmbed />;
+  }
 
   if (loading) {
     return (

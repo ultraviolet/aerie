@@ -343,11 +343,11 @@ Return ONLY a JSON array of type names, e.g. ["pl-multiple-choice", "pl-matching
 """
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3-flash-preview",
         contents=selection_prompt,
         config=genai.types.GenerateContentConfig(
             temperature=0.2,
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             response_mime_type="application/json",
         ),
     )
@@ -402,7 +402,7 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
 
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3-flash-preview",
         contents=full_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=(
@@ -715,7 +715,7 @@ def generate_questions(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3-flash-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -932,7 +932,7 @@ def generate_questions_stream(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3-flash-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -1126,7 +1126,7 @@ def generate_similar_question(
     # 5. Single Gemini call
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3-flash-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
