@@ -127,6 +127,7 @@ export default function QuestionPage() {
           {},
         score: submission.score,
         feedback: (submission.feedback as Record<string, unknown>) ?? {},
+        course_id: question?.course_id ?? null,
       });
       setMessages((prev) => [...prev, { role: "ai", content: res.reply }]);
     } catch (err) {
