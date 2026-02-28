@@ -24,6 +24,7 @@ import {
   Check,
   X,
   Save,
+  ArrowLeft,
 } from "lucide-react";
 
 export default function CoursePage() {
@@ -355,13 +356,19 @@ function MaterialsTab({
                 >
                   {viewMode === "grid" ? (
                     <CardHeader>
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center justify-between mb-2">
                         <Badge
                           variant="outline"
                           className="text-[10px] border-slate-300 text-slate-500 uppercase font-mono tracking-tighter bg-slate-50 group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-colors"
                         >
                           {m.type}
                         </Badge>
+                        {/* Score Badge (Grid View) */}
+                        <span className="text-[11px] font-black font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shadow-sm group-hover:border-primary/30 transition-colors">
+                          {m.score_pct != null
+                            ? `${Math.round(m.score_pct)}%`
+                            : "NEW"}
+                        </span>
                       </div>
                       <CardTitle className="text-base group-hover:text-primary transition-colors">
                         {m.number ? `${m.number}. ` : ""}
@@ -374,21 +381,29 @@ function MaterialsTab({
                     </CardHeader>
                   ) : (
                     <>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
                         <Badge
                           variant="outline"
                           className="text-[10px] border-slate-300 text-slate-500 uppercase font-mono tracking-tighter bg-slate-50 group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-colors shrink-0"
                         >
                           {m.type}
                         </Badge>
-                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors text-sm sm:text-base">
+                        <h3 className="font-bold text-slate-900 group-hover:text-primary transition-colors text-sm sm:text-base truncate">
                           {m.number ? `${m.number}. ` : ""}
                           {m.title}
                         </h3>
                       </div>
-                      <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest shrink-0">
-                        {m.question_ids.length} question
-                        {m.question_ids.length !== 1 ? "s" : ""}
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest shrink-0 hidden sm:block">
+                          {m.question_ids.length} question
+                          {m.question_ids.length !== 1 ? "s" : ""}
+                        </div>
+                        {/* Score Badge (List View) */}
+                        <span className="text-[12px] font-black font-mono px-2 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shadow-sm group-hover:border-primary/30 transition-colors">
+                          {m.score_pct != null
+                            ? `${Math.round(m.score_pct)}%`
+                            : "NEW"}
+                        </span>
                       </div>
                     </>
                   )}
@@ -401,7 +416,6 @@ function MaterialsTab({
     </div>
   );
 }
-
 /* ---------- Generate Material View ---------- */
 function GenerateMaterialView({
   courseId,
@@ -536,8 +550,9 @@ function GenerateMaterialView({
               variant="ghost"
               onClick={onCancel}
               disabled={generating}
-              className="text-slate-500 hover:text-slate-900 font-medium"
+              className="flex items-center justify-center gap-2 text-slate-900 hover:text-slate-900 hover:bg-slate-100 font-medium transition-colors"
             >
+              <ArrowLeft className="size-4" />
               cancel
             </Button>
 
@@ -580,7 +595,7 @@ function GenerateMaterialView({
       {/* Generation Results */}
       {generatedQuestions.length > 0 && (
         <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-          <h3 className="text-lg font-black text-slate-900 border-b pb-2">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest pb-2 border-b">
             Material Ready
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -590,16 +605,8 @@ function GenerateMaterialView({
                 to={`/questions/${q.id}`}
                 className="block no-underline"
               >
-                <Card className="transition-all hover:shadow-md hover:border-primary/40 cursor-pointer h-full">
+                <Card className="transition-all hover:shadow-md hover:border-primary/40 cursor-pointer h-full pb-3">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge
-                        variant="secondary"
-                        className="bg-primary/10 text-primary border-none"
-                      >
-                        New Component
-                      </Badge>
-                    </div>
                     <CardTitle className="text-base text-slate-900 leading-tight">
                       {q.title}
                     </CardTitle>
@@ -609,8 +616,8 @@ function GenerateMaterialView({
                           {q.topic}
                         </span>
                       )}
-                      <span className="text-primary font-medium hover:underline">
-                        Click to open &rarr;
+                      <span className="text-primary font-medium">
+                        click to open &rarr;
                       </span>
                     </CardDescription>
                   </CardHeader>
