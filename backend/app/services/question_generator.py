@@ -183,7 +183,8 @@ A question consists of:
    Format depends on the element type — see the type specs below.
 
 3. **title**: A short descriptive title for the question.
-4. **topic**: The topic/category.
+4. **topics**: A list of topic strings for this question. Each question can belong to one or more topics.
+{topics_instruction}
 5. **tags**: A list of relevant tags.
 
 IMPORTANT RULES:
@@ -200,10 +201,10 @@ AVAILABLE QUESTION TYPES (use ONLY these):
 {type_specs}
 
 When asked for ONE question, return a JSON object:
-{{"title": "...", "topic": "...", "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}
+{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}
 
 When asked for MULTIPLE questions, return a JSON object with a "questions" array:
-{{"questions": [{{"title": "...", "topic": "...", "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}, ...]}}
+{{"questions": [{{"title": "...", "topics": ["..."], "tags": ["..."], "question_html": "...", "correct_answers": {{ ... }}}}, ...]}}
 """
 
 
@@ -259,12 +260,24 @@ Return ONLY a JSON array of type names, e.g. ["pl-multiple-choice", "pl-matching
     return ALL_TYPE_NAMES
 
 
-def _build_system_prompt(selected_types: list[str]) -> str:
+def _build_system_prompt(selected_types: list[str], existing_topics: list[str]) -> str:
     """Build the generation system prompt with only the selected type specs."""
     specs = "\n\n".join(
         QUESTION_TYPE_SPECS[t] for t in selected_types if t in QUESTION_TYPE_SPECS
     )
-    return SYSTEM_PROMPT_BASE.format(type_specs=specs)
+    if existing_topics:
+        topic_list = ", ".join(f'"{t}"' for t in existing_topics)
+        topics_instruction = (
+            f"   The course already has these topics: [{topic_list}]. "
+            "Reuse existing topics when they fit. Only create a new topic if the question "
+            "covers something genuinely different. A question can have multiple topics."
+        )
+    else:
+        topics_instruction = (
+            "   No topics exist yet for this course. Create clear, concise topic names "
+            "(e.g. \"Sorting Algorithms\", \"Big-O Notation\", \"DFA Construction\")."
+        )
+    return SYSTEM_PROMPT_BASE.format(type_specs=specs, topics_instruction=topics_instruction)
 
 
 def _get_gemini_client() -> genai.Client:
@@ -301,13 +314,18 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
         ),
     )
 
+    raw = response.text.strip()
     try:
-        queries = json.loads(response.text.strip())
+        queries = json.loads(raw)
+        # Handle {"queries": [...]} wrapper that Gemini sometimes returns
+        if isinstance(queries, dict) and "queries" in queries:
+            queries = queries["queries"]
         if isinstance(queries, list) and all(isinstance(q, str) for q in queries):
             log.info("Query expansion: %r -> %d queries", prompt[:60], len(queries))
             return queries[:5]
+        log.warning("Query expansion returned unexpected structure: %s", raw[:300])
     except (json.JSONDecodeError, TypeError):
-        log.warning("Query expansion failed to parse, falling back to raw prompt")
+        log.warning("Query expansion failed to parse (raw=%s), falling back to raw prompt", raw[:300])
 
     return [prompt]
 
@@ -436,19 +454,21 @@ def generate_questions(
     prompt: str,
     course: Course,
     db: Session,
-    topic: str = "",
+    topics: list[str] | None = None,
     num_questions: int = 1,
 ) -> tuple[list[Question], list[str]]:
     """Generate questions using RAG context from the course's documents.
 
     Returns (list_of_questions, context_chunks).
     """
+    topics = topics or []
+    topic_hint = ", ".join(topics) if topics else ""
 
     # 1. Expand user prompt into content-rich search queries, then retrieve context
     context_chunks: list[str] = []
     if course.container_tag:
         try:
-            queries = _expand_queries(prompt, topic)
+            queries = _expand_queries(prompt, topic_hint)
             context_chunks = _retrieve_context(queries, course.container_tag)
             log.info(
                 "RAG context for course %s (tag=%s): %d chunks from %d queries",
@@ -465,13 +485,14 @@ def generate_questions(
         context_summary = " | ".join(c[:120] for c in context_chunks[:3])
 
     try:
-        selected_types = _select_question_types(prompt, topic, num_questions, context_summary)
+        selected_types = _select_question_types(prompt, topic_hint, num_questions, context_summary)
     except Exception:
         log.exception("Type selection failed, falling back to all types")
         selected_types = ALL_TYPE_NAMES
 
     log.info("Selected question types: %r", selected_types)
-    system_prompt = _build_system_prompt(selected_types)
+    existing_topics = course.topics
+    system_prompt = _build_system_prompt(selected_types, existing_topics)
 
     # 3. Build the user prompt with RAG context
     context_section = ""
@@ -486,8 +507,8 @@ def generate_questions(
         log.warning("No RAG context available — Gemini will generate without course materials")
 
     user_prompt = f"{context_section}USER REQUEST: {prompt}"
-    if topic:
-        user_prompt += f"\nTOPIC: {topic}"
+    if topics:
+        user_prompt += f"\nFOCUS ON TOPICS: {', '.join(topics)}"
     if num_questions > 1:
         user_prompt += f"\nNUMBER OF QUESTIONS: {num_questions} (return a diverse set covering different aspects of the material)"
 
@@ -539,9 +560,12 @@ def generate_questions(
         )
 
     # 6. Create a new assessment for this batch
-    assessment_title = topic if topic else prompt[:60].strip()
-    if not assessment_title:
-        assessment_title = "AI Generated Quiz"
+    if len(topics) > 3:
+        assessment_title = f"{', '.join(topics[:3])} + {len(topics) - 3} more"
+    elif topics:
+        assessment_title = ", ".join(topics)
+    else:
+        assessment_title = prompt[:60].strip() or "AI Generated Quiz"
     tid = f"gen_{uuid.uuid4().hex[:8]}"
 
     assessment = Assessment(
@@ -554,16 +578,28 @@ def generate_questions(
     db.add(assessment)
     db.flush()
 
-    # 7. Create Question rows
+    # 7. Create Question rows and collect new topics
     questions: list[Question] = []
     current_ids: list[str] = []
+    all_new_topics: set[str] = set()
 
     for item in items:
         title = item.get("title", "Generated Question")
-        q_topic = item.get("topic", topic)
         tags = item.get("tags", ["ai-generated"])
         question_html = item.get("question_html", "")
         correct_answers = item.get("correct_answers", {})
+
+        # Handle topics: LLM returns "topics" (list) or legacy "topic" (string)
+        item_topics = item.get("topics", [])
+        if not item_topics:
+            legacy_topic = item.get("topic", topic_hint)
+            item_topics = [legacy_topic] if legacy_topic else []
+        if isinstance(item_topics, str):
+            item_topics = [item_topics]
+
+        # Primary topic for the Question.topic field (first in list)
+        q_topic = item_topics[0] if item_topics else topic_hint
+        all_new_topics.update(item_topics)
 
         if not question_html:
             log.warning("Skipping question with empty question_html: %s", title)
@@ -590,6 +626,14 @@ def generate_questions(
         questions.append(question)
 
     assessment.question_ids = current_ids
+
+    # 8. Update the course's topic catalog with any new topics
+    existing_set = set(existing_topics)
+    new_topics = [t for t in all_new_topics if t and t not in existing_set]
+    if new_topics:
+        course.topics = existing_topics + new_topics
+        log.info("Added %d new topic(s) to course %s: %r", len(new_topics), course.id, new_topics)
+
     db.flush()
 
     return questions, context_chunks

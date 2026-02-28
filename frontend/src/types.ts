@@ -14,6 +14,7 @@ export interface Course {
   title: string;
   path: string;
   container_tag: string;
+  topics: string[];
 }
 
 export interface Assessment {
@@ -74,7 +75,7 @@ export interface CourseDocument {
 
 export interface GenerateRequest {
   prompt: string;
-  topic?: string;
+  topics?: string[];
   num_questions?: number;
 }
 

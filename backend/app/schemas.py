@@ -49,6 +49,7 @@ class CourseOut(BaseModel):
     path: str           # URL path
     container_tag: str  # Auto-generated slug
     # created_at: Optional[datetime] = None # Add if you have this in DB
+    topics: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -127,7 +128,7 @@ class DocumentOut(BaseModel):
 
 class GenerateRequest(BaseModel):
     prompt: str
-    topic: str = ""
+    topics: list[str] = []
     num_questions: int = 5
 
 

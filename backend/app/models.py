@@ -30,11 +30,20 @@ class Course(Base):
     path: Mapped[str] = mapped_column(String, nullable=False)
 
     container_tag: Mapped[str] = mapped_column(String, default="")
+    _topics: Mapped[str] = mapped_column("topics", Text, default="[]")
 
     user: Mapped["User"] = relationship(back_populates="courses")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     questions: Mapped[list["Question"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     documents: Mapped[list["Document"]] = relationship(back_populates="course", cascade="all, delete-orphan")
+
+    @property
+    def topics(self) -> list[str]:
+        return json.loads(self._topics)
+
+    @topics.setter
+    def topics(self, value: list[str]):
+        self._topics = json.dumps(value)
 
 
 class Assessment(Base):

@@ -3,9 +3,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Course, User
+from app.models import Course, Question, User
 from app.schemas import CourseCreateRequest, CourseOut
 from app.services.course_loader import create_course
+
+
+def _all_topics(course: Course, db: Session) -> list[str]:
+    """Merge stored course topics with topics from existing questions."""
+    stored = set(course.topics)
+    question_topics = (
+        db.query(Question.topic)
+        .filter(Question.course_id == course.id, Question.topic != "")
+        .distinct()
+        .all()
+    )
+    stored.update(t[0] for t in question_topics)
+    return sorted(stored)
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -18,6 +31,8 @@ def get_course(course_id: int, db: Session = Depends(get_db), user: User = Depen
     course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    # Merge stored topics with topics from existing questions
+    course.topics = _all_topics(course, db)
     return course
 
 @router.post("/", response_model=CourseOut)
@@ -49,3 +64,10 @@ def create_course_endpoint(
         print(f"Error creating course: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{course_id}/topics", response_model=list[str])
+def get_topics(course_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return _all_topics(course, db)

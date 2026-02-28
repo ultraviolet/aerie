@@ -40,7 +40,7 @@ def generate(
             prompt=req.prompt,
             course=course,
             db=db,
-            topic=req.topic,
+            topics=req.topics,
             num_questions=num,
         )
     except (ValueError, RuntimeError) as e:

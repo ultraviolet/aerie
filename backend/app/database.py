@@ -26,3 +26,18 @@ def init_db():
     from app.models import Assessment, Course, Document, Question, Submission, User, Variant  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+    # Add columns that may not exist yet (safe for SQLite)
+    _migrate_add_column("courses", "topics", "TEXT DEFAULT '[]'")
+
+
+def _migrate_add_column(table: str, column: str, col_type: str):
+    """Add a column to an existing table if it doesn't already exist."""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        try:
+            conn.execute(text(f"SELECT {column} FROM {table} LIMIT 1"))
+        except Exception:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+            conn.commit()

@@ -276,7 +276,7 @@ function GenerateTab({
   onGenerated: () => void;
 }) {
   const [prompt, setPrompt] = useState("");
-  const [topic, setTopic] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [numQuestions, setNumQuestions] = useState(5);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -284,10 +284,19 @@ function GenerateTab({
   const [contextUsed, setContextUsed] = useState<string[]>([]);
   const [docCount, setDocCount] = useState<number | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [courseTopics, setCourseTopics] = useState<string[]>([]);
+  const [topicsOpen, setTopicsOpen] = useState(false);
 
   useEffect(() => {
     api.listDocuments(courseId).then((docs) => setDocCount(docs.length));
+    api.getCourse(courseId).then((c) => setCourseTopics(c.topics ?? []));
   }, [courseId]);
+
+  const toggleTopic = (topic: string) => {
+    setSelectedTopics((prev) =>
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
+    );
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -298,13 +307,15 @@ function GenerateTab({
     try {
       const res = await api.generateQuestions(courseId, {
         prompt: prompt.trim(),
-        topic: topic.trim() || undefined,
+        topics: selectedTopics.length > 0 ? selectedTopics : undefined,
         num_questions: numQuestions,
       });
       setGeneratedQuestions(res.questions);
       setContextUsed(res.context_used);
       setHasGenerated(true);
       onGenerated();
+      // Refresh course topics in case new ones were created
+      api.getCourse(courseId).then((c) => setCourseTopics(c.topics ?? []));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -353,17 +364,63 @@ function GenerateTab({
             </p>
           </div>
 
+          {/* Topic selector */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">
+              Topics (optional)
+            </label>
+            {selectedTopics.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedTopics.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTopic(t)}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    {t}
+                    <span className="text-primary/60 ml-0.5">&times;</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {courseTopics.length > 0 ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setTopicsOpen(!topicsOpen)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {topicsOpen ? "Hide topics" : `Choose from ${courseTopics.length} existing topic${courseTopics.length !== 1 ? "s" : ""}...`}
+                </button>
+                {topicsOpen && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {courseTopics
+                      .filter((t) => !selectedTopics.includes(t))
+                      .map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => toggleTopic(t)}
+                          className="rounded-md border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                        >
+                          + {t}
+                        </button>
+                      ))}
+                    {courseTopics.filter((t) => !selectedTopics.includes(t)).length === 0 && (
+                      <span className="text-xs text-muted-foreground">All topics selected</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No topics yet. The AI will create topics as you generate questions.
+              </p>
+            )}
+          </div>
+
           <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1 block">
-                Topic (optional)
-              </label>
-              <Input
-                placeholder="e.g. Data Structures"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-              />
-            </div>
             <div className="w-24">
               <label className="text-sm font-medium mb-1 block">
                 Questions
