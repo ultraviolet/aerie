@@ -120,7 +120,7 @@ export default function CoursePage() {
     );
 
   return (
-    <div className="h-[100dvh] flex flex-col max-w-5xl mx-auto w-full pt-0 px-4 overflow-hidden">
+    <div className="relative h-[100dvh] flex flex-col max-w-5xl mx-auto w-full pt-0 px-4 overflow-hidden">
       <div className="shrink-0 flex items-center justify-between pt-4 pb-2">
         <Link to="/">
           <Button
@@ -159,31 +159,7 @@ export default function CoursePage() {
       >
         <div className="shrink-0 mb-4 border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-2">
           <div className="flex-1 min-w-0 w-full">
-            {isConfirmingDelete ? (
-              <div className="flex flex-col gap-2 p-3 bg-red-50 border border-red-200 rounded-xl animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-2 text-red-800 font-bold">
-                  <AlertCircle className="size-4" /> delete "{course.title}"?
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteCourse}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? "deleting..." : "yes, permanently delete"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    disabled={isProcessing}
-                  >
-                    cancel
-                  </Button>
-                </div>
-              </div>
-            ) : isEditingName ? (
+            {isEditingName ? (
               <div className="flex items-center gap-2 animate-in fade-in duration-200">
                 <Input
                   value={editName}
@@ -266,6 +242,38 @@ export default function CoursePage() {
           <InfoTab courseId={courseId} />
         </TabsContent>
       </Tabs>
+
+      {/* Delete confirmation modal */}
+      {isConfirmingDelete && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-red-200 shadow-2xl rounded-2xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-red-800 font-bold text-lg">
+              <AlertCircle className="size-5" /> delete course?
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete{" "}
+              <strong className="text-slate-900">"{course.title}"</strong>? This
+              cannot be undone.
+            </p>
+            <div className="flex items-center gap-3 justify-end mt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setIsConfirmingDelete(false)}
+                disabled={isProcessing}
+              >
+                cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteCourse}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "deleting..." : "yes, permanently delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -966,7 +974,9 @@ function GenerateMaterialView({
               >
                 {generating
                   ? progressSteps.length > 0
-                    ? progressSteps[progressSteps.length - 1].message
+                    ? progressSteps[
+                        progressSteps.length - 1
+                      ].message.toLowerCase()
                     : "starting..."
                   : "generate"}
               </Button>
