@@ -1,3 +1,5 @@
+import LatexText from "./LatexText";
+
 interface PLAnswer {
   text: string;
   correct: boolean;

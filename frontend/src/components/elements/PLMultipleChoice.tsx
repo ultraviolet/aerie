@@ -1,3 +1,5 @@
+import LatexText from "./LatexText";
+
 interface PLAnswer {
   text: string;
   correct: boolean;
@@ -29,7 +31,7 @@ export default function PLMultipleChoice({ answersName, answers, selected, onCha
             disabled={disabled}
             className="h-4 w-4"
           />
-          <span className="text-sm">{a.text}</span>
+          <span className="text-sm"><LatexText>{a.text}</LatexText></span>
         </label>
       ))}
     </div>

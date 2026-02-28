@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import LatexText from "./LatexText";
 
 interface OrderItem {
   text: string;
@@ -83,7 +84,7 @@ export default function PLOrderBlocks({
               <span className="text-xs font-mono text-muted-foreground w-5">
                 {i + 1}.
               </span>
-              <span className="flex-1">{text}</span>
+              <span className="flex-1"><LatexText>{text}</LatexText></span>
               {!disabled && (
                 <div className="flex gap-1">
                   <button
@@ -134,7 +135,7 @@ export default function PLOrderBlocks({
                 disabled={disabled}
                 className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-accent hover:border-primary disabled:opacity-50"
               >
-                {item.text}
+                <LatexText>{item.text}</LatexText>
               </button>
             ))}
           </div>

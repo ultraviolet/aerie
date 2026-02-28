@@ -1,4 +1,5 @@
 import type { ParsedOption, ParsedStatement } from "../parseQuestionHtml";
+import LatexText from "./LatexText";
 
 interface Props {
   answersName: string;
@@ -35,7 +36,7 @@ export default function PLMatching({
         <tbody>
           {statements.map((stmt, i) => (
             <tr key={i} className="border-t">
-              <td className="py-3 pr-4 align-top">{stmt.text}</td>
+              <td className="py-3 pr-4 align-top"><LatexText>{stmt.text}</LatexText></td>
               <td className="py-3 align-top">
                 <select
                   value={selected[String(i)] ?? ""}

@@ -1,4 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
+import LatexText from "./LatexText";
 
 interface PLAnswer {
   text: string;
@@ -33,7 +34,7 @@ export default function PLCheckbox({ answersName, answers, selected, onChange, d
             onCheckedChange={() => toggle(a.text)}
             disabled={disabled}
           />
-          <span className="text-sm">{a.text}</span>
+          <span className="text-sm"><LatexText>{a.text}</LatexText></span>
         </label>
       ))}
     </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/api";
 import QuestionContent from "@/components/QuestionContent";
 import QuestionInputs from "@/components/QuestionInputs";
@@ -23,6 +23,7 @@ export default function QuestionPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const assessmentId = searchParams.get("assessment");
+  const navigate = useNavigate();
   const [question, setQuestion] = useState<Question | null>(null);
   const [variant, setVariant] = useState<Variant | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -30,6 +31,7 @@ export default function QuestionPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [assessmentQuestionIds, setAssessmentQuestionIds] = useState<number[]>([]);
 
   // Chat State
   const [chatInput, setChatInput] = useState("");
@@ -62,6 +64,14 @@ export default function QuestionPage() {
   useEffect(() => {
     generateVariant();
   }, [generateVariant]);
+
+  // Fetch assessment question order for "Next Question" navigation
+  useEffect(() => {
+    if (!assessmentId) return;
+    api.getAssessment(Number(assessmentId)).then((detail) => {
+      setAssessmentQuestionIds(detail.questions.map((q) => q.id));
+    }).catch(() => {});
+  }, [assessmentId]);
 
   const handleAnswerChange = (name: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [name]: value }));
@@ -122,6 +132,14 @@ export default function QuestionPage() {
           : "incorrect";
   const backLink = assessmentId ? `/assessments/${assessmentId}` : "/";
 
+  // Next question in assessment (if applicable)
+  const currentIdx = assessmentQuestionIds.indexOf(Number(id));
+  const nextQuestionId =
+    currentIdx >= 0 && currentIdx < assessmentQuestionIds.length - 1
+      ? assessmentQuestionIds[currentIdx + 1]
+      : null;
+  const isLastQuestion = currentIdx >= 0 && currentIdx === assessmentQuestionIds.length - 1;
+
   if (loading)
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground font-medium">
@@ -158,6 +176,11 @@ export default function QuestionPage() {
           <Badge variant="secondary" className="font-mono text-[10px]">
             {question.topic}
           </Badge>
+        )}
+        {assessmentId && assessmentQuestionIds.length > 0 && currentIdx >= 0 && (
+          <span className="text-xs text-muted-foreground ml-auto font-mono">
+            {currentIdx + 1} / {assessmentQuestionIds.length}
+          </span>
         )}
       </div>
 
@@ -284,12 +307,31 @@ export default function QuestionPage() {
 
               <div className="flex gap-3">
                 {submission == null ? (
+                  <>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="flex-1 font-bold"
+                    >
+                      {submitting ? "Grading..." : "Submit"}
+                    </Button>
+                    <Button variant="outline" onClick={generateVariant}>
+                      Reset
+                    </Button>
+                  </>
+                ) : assessmentId && nextQuestionId ? (
                   <Button
-                    onClick={handleSubmit}
-                    disabled={submitting}
+                    onClick={() => navigate(`/questions/${nextQuestionId}?assessment=${assessmentId}`)}
                     className="flex-1 font-bold"
                   >
-                    {submitting ? "Grading..." : "Submit"}
+                    Next Question &rarr;
+                  </Button>
+                ) : assessmentId && isLastQuestion ? (
+                  <Button
+                    onClick={() => navigate(`/assessments/${assessmentId}`)}
+                    className="flex-1 font-bold"
+                  >
+                    Finish Assessment
                   </Button>
                 ) : (
                   <Button
@@ -297,11 +339,6 @@ export default function QuestionPage() {
                     className="flex-1 font-bold"
                   >
                     New Variant
-                  </Button>
-                )}
-                {submission == null && (
-                  <Button variant="outline" onClick={generateVariant}>
-                    Reset
                   </Button>
                 )}
               </div>
