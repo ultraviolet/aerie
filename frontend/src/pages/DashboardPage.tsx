@@ -26,11 +26,17 @@ import {
 import { api } from "@/api";
 import type { Course, RecentAssessment } from "@/types";
 
+// 1. IMPORT YOUR FORM COMPONENT HERE (Adjust the path if needed)
+import CreateCourseForm from "@/components/elements/CreateCourseForm";
+
 export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [recentItems, setRecentItems] = useState<RecentAssessment[]>([]);
   const recentCardRef = useRef<HTMLDivElement>(null);
   const [recentLimit, setRecentLimit] = useState(4);
+
+  // 2. ADD STATE FOR MODAL
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
@@ -38,7 +44,6 @@ export default function DashboardPage() {
   }, []);
 
   // Updated ResizeObserver for the slimmer 48px items
-
   useEffect(() => {
     const calculate = () => {
       if (!recentCardRef.current) return;
@@ -170,7 +175,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. COURSE LIBRARY (Unchanged per request) */}
+      {/* 3. COURSE LIBRARY */}
       <Card
         className="lg:col-span-2 flex flex-col h-full bg-white border-slate-200 shadow-xl overflow-hidden p-0 relative"
         style={{ height: "100%", minHeight: 0, overflow: "visible" }}
@@ -179,15 +184,15 @@ export default function DashboardPage() {
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white m-0">
             Course Library
           </h2>
-          <Link to="/courses/new">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8 bg-slate-600 border-slate-700 text-white hover:bg-slate-100"
-            >
-              <Plus className="size-4" />
-            </Button>
-          </Link>
+          {/* 3. CHANGED FROM <Link> TO onClick */}
+          <Button
+            onClick={() => setIsCreatingCourse(true)}
+            variant="outline"
+            size="icon"
+            className="size-8 bg-slate-600 border-slate-700 text-white hover:bg-slate-100"
+          >
+            <Plus className="size-4" />
+          </Button>
         </div>
         <div
           className="custom-scrollbar"
@@ -207,7 +212,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-4 px-4 py-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
                     <div className="flex flex-col overflow-hidden flex-1">
-                      <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors">
+                      <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors uppercase">
                         {c.title || c.name}
                       </span>
                     </div>
@@ -225,6 +230,17 @@ export default function DashboardPage() {
           </div>
         </div>
       </Card>
+
+      {/* 4. RENDER MODAL CONDITONALLY */}
+      {isCreatingCourse && (
+        <CreateCourseForm
+          onClose={() => {
+            setIsCreatingCourse(false);
+            // Refresh courses list after a new one is successfully created!
+            api.listCourses().then(setCourses).catch(console.error);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -49,6 +49,7 @@ class SubmitRequest(BaseModel):
 class CourseOut(BaseModel):
     id: int
     name: str           # Stored title
+    title: str
     path: str           # URL path
     container_tag: str  # Auto-generated slug
     # created_at: Optional[datetime] = None # Add if you have this in DB

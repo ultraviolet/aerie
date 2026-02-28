@@ -18,7 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   } else if (isQuestionPage) {
     mainClasses += "overflow-hidden";
   } else {
-    mainClasses += "mx-auto max-w-5xl px-6 py-8 overflow-y-auto";
+    mainClasses += "mx-auto max-w-5xl px-6 overflow-y-auto";
   }
 
   return (
@@ -37,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             onClick={logout}
             className="text-md text-slate-900 hover:bg-transparent hover:text-slate-600"
           >
-            Log out
+            log out
           </Button>
         )}
       </nav>
