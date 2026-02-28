@@ -7,7 +7,6 @@ import CoursePage from "@/pages/CoursePage";
 import DashboardPage from "@/pages/DashboardPage";
 import MemoryGraphEmbed from "@/pages/MemoryGraphEmbed";
 import QuestionPage from "@/pages/QuestionPage";
-import CreateCourseForm from "./components/elements/CreateCourseForm";
 import "katex/dist/katex.min.css";
 
 function AppRoutes() {
@@ -36,7 +35,6 @@ function AppRoutes() {
     <Layout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/courses/new" element={<CreateCourseForm />} />
         <Route path="/courses/:id" element={<CoursePage />} />
         <Route path="/assessments/:id" element={<AssessmentPage />} />
         <Route path="/questions/:id" element={<QuestionPage />} />
