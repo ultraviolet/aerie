@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import threading
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -34,6 +35,52 @@ def get_question(question_id: int, db: Session = Depends(get_db), user: User = D
     q = db.get(Question, question_id)
     _check_question_access(q, db, user)
     return q
+
+
+@router.get("/questions/{question_id}/last-attempt")
+def last_attempt(question_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Return the most recent variant + submission for a question, or null if none."""
+    q = _check_question_access(db.get(Question, question_id), db, user)
+
+    # Find the most recent variant that has a submission
+    variant = (
+        db.query(Variant)
+        .filter(Variant.question_id == q.id, Variant.user_id == user.id)
+        .join(Submission, Submission.variant_id == Variant.id)
+        .order_by(Submission.submitted_at.desc())
+        .first()
+    )
+    if not variant:
+        return {"variant": None, "submission": None}
+
+    sub = (
+        db.query(Submission)
+        .filter(Submission.variant_id == variant.id, Submission.user_id == user.id)
+        .order_by(Submission.submitted_at.desc())
+        .first()
+    )
+
+    # Re-render the HTML for this variant
+    rendered_html = q.question_html
+    if variant.params:
+        import chevron
+        try:
+            rendered_html = chevron.render(q.question_html, {"params": variant.params, "correct_answers": variant.correct_answers})
+        except Exception:
+            pass
+
+    return {
+        "variant": VariantOut(
+            id=variant.id,
+            question_id=variant.question_id,
+            seed=variant.seed,
+            params=variant.params,
+            correct_answers={},
+            rendered_html=rendered_html,
+            created_at=variant.created_at,
+        ),
+        "submission": sub,
+    }
 
 
 @router.post("/questions/{question_id}/variant", response_model=VariantOut)
@@ -116,20 +163,26 @@ def submit_answers(variant_id: int, req: SubmitRequest, db: Session = Depends(ge
     db.commit()
     db.refresh(sub)
 
-    # Save performance to supermemory for user learning profile
+    # Save performance to supermemory in background (don't block response)
     if q and course:
-        try:
-            score = result["score"] or 0
-            topic = q.topic or "General"
-            if score >= 1.0:
-                memory = f"Student answered correctly on topic '{topic}': {q.title}"
-            elif score > 0:
-                memory = f"Student got partial credit ({score*100:.0f}%) on topic '{topic}': {q.title}"
-            else:
-                memory = f"Student answered incorrectly on topic '{topic}': {q.title}"
-            sm.add_user_memory(memory, user.id, course.id)
-        except Exception:
-            log.exception("Failed to save submission memory")
+        score = result["score"] or 0
+        topic = q.topic or "General"
+        title = q.title
+        uid, cid = user.id, course.id
+
+        def _save():
+            try:
+                if score >= 1.0:
+                    mem = f"Student answered correctly on topic '{topic}': {title}"
+                elif score > 0:
+                    mem = f"Student got partial credit ({score*100:.0f}%) on topic '{topic}': {title}"
+                else:
+                    mem = f"Student answered incorrectly on topic '{topic}': {title}"
+                sm.add_user_memory(mem, uid, cid)
+            except Exception:
+                log.exception("Failed to save submission memory")
+
+        threading.Thread(target=_save, daemon=True).start()
 
     return sub
 

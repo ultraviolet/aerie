@@ -115,13 +115,17 @@ function AssessmentsTab({ assessments }: { assessments: Assessment[] }) {
           <Card className="cursor-pointer h-full">
             <CardHeader>
               <div className="flex items-center gap-3 mb-2">
-                {/* Changed Badge variant/style to match the neutral slate theme */}
                 <Badge
                   variant="outline"
                   className="text-[10px] border-slate-700 text-slate-500 uppercase font-mono tracking-tighter"
                 >
                   {a.type}
                 </Badge>
+                {a.score_pct != null && (
+                  <span className="ml-auto text-sm font-bold font-mono text-slate-700">
+                    {a.score_pct}%
+                  </span>
+                )}
               </div>
               <CardTitle className="text-base">
                 {a.number ? `${a.number}. ` : ""}

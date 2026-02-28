@@ -47,19 +47,44 @@ export default function QuestionPage() {
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const generateVariant = useCallback(async () => {
+  const loadQuestion = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setSubmission(null);
     setAnswers({});
-    setMessages([]); // Reset chat on new variant
+    setMessages([]);
     setError("");
     try {
-      const [q, v] = await Promise.all([
-        api.getQuestion(Number(id)),
-        api.createVariant(Number(id)),
-      ]);
+      const q = await api.getQuestion(Number(id));
       setQuestion(q);
+
+      // Check for an existing attempt first
+      const attempt = await api.lastAttempt(Number(id));
+      if (attempt.variant && attempt.submission) {
+        setVariant(attempt.variant);
+        setSubmission(attempt.submission);
+        setAnswers((attempt.submission.submitted_answers as Record<string, unknown>) ?? {});
+      } else {
+        // No previous attempt — create a new variant
+        const v = await api.createVariant(Number(id));
+        setVariant(v);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  const generateNewVariant = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setSubmission(null);
+    setAnswers({});
+    setMessages([]);
+    setError("");
+    try {
+      const v = await api.createVariant(Number(id));
       setVariant(v);
     } catch (e) {
       setError(String(e));
@@ -69,8 +94,8 @@ export default function QuestionPage() {
   }, [id]);
 
   useEffect(() => {
-    generateVariant();
-  }, [generateVariant]);
+    loadQuestion();
+  }, [loadQuestion]);
 
   // Fetch assessment question order for "Next Question" navigation
   useEffect(() => {
@@ -363,7 +388,7 @@ export default function QuestionPage() {
                     >
                       {submitting ? "Grading..." : "Submit"}
                     </Button>
-                    <Button variant="outline" onClick={generateVariant}>
+                    <Button variant="outline" onClick={generateNewVariant}>
                       Reset
                     </Button>
                   </>
@@ -387,7 +412,7 @@ export default function QuestionPage() {
                   </Button>
                 ) : (
                   <Button
-                    onClick={generateVariant}
+                    onClick={generateNewVariant}
                     className="flex-1 font-bold"
                   >
                     New Variant

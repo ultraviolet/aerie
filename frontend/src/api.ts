@@ -7,6 +7,7 @@ import type {
   GenerateRequest,
   GenerateResponse,
   Question,
+  RecentAssessment,
   Submission,
   Variant,
 } from "./types";
@@ -69,9 +70,15 @@ export const api = {
     request<Assessment[]>(`/courses/${courseId}/assessments`),
   getAssessment: (id: number) =>
     request<AssessmentDetail>(`/assessments/${id}`),
+  assessmentScores: (id: number) =>
+    request<{ scores: Record<string, number | null> }>(`/assessments/${id}/scores`),
+  recentAssessments: () =>
+    request<RecentAssessment[]>("/assessments/recent"),
 
   // Questions & Variants
   getQuestion: (id: number) => request<Question>(`/questions/${id}`),
+  lastAttempt: (questionId: number) =>
+    request<{ variant: Variant | null; submission: Submission | null }>(`/questions/${questionId}/last-attempt`),
   createVariant: (questionId: number) =>
     request<Variant>(`/questions/${questionId}/variant`, { method: "POST" }),
   getVariant: (variantId: number) => request<Variant>(`/variants/${variantId}`),
