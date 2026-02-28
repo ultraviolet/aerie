@@ -34,3 +34,20 @@ def load_course_from_path(
     except FileNotFoundError as e:
         raise HTTPException(400, str(e))
     return course
+
+
+# # /topics get and post
+# @router.get("/{course_id}/topics")
+# def list_topics(course_id: int, db: Session = Depends(get_db)):
+#     return db.query(Topic).filter(
+#         Topic.course_id == course_id
+#     ).all()
+
+
+# @router.post("/{course_id}/topics")
+# def create_topic(course_id: int, data: TopicCreate, db: Session = Depends(get_db)):
+#     topic = Topic(name=data.name, course_id=course_id)
+#     db.add(topic)
+#     db.commit()
+#     db.refresh(topic)
+#     return topic

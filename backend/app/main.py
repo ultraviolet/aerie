@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from app.database import init_db
-from app.routers import assessments, auth, courses, documents, generate, questions
+from app.routers import assessments, auth, courses, documents, generate, questions, topics
 
 
 @asynccontextmanager
@@ -32,7 +32,7 @@ app.include_router(assessments.router, prefix="/api")
 app.include_router(questions.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
-
+app.include_router(topics.router, prefix="/api")
 
 @app.get("/api/health")
 def health():

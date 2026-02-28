@@ -35,7 +35,7 @@ class Course(Base):
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     questions: Mapped[list["Question"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     documents: Mapped[list["Document"]] = relationship(back_populates="course", cascade="all, delete-orphan")
-
+    topics: Mapped[list["Topic"]] = relationship(back_populates="course", cascade="all, delete-orphan")
 
 class Assessment(Base):
     __tablename__ = "assessments"
@@ -78,7 +78,8 @@ class Question(Base):
 
     course: Mapped["Course"] = relationship(back_populates="questions")
     variants: Mapped[list["Variant"]] = relationship(back_populates="question", cascade="all, delete-orphan")
-
+    topic: Mapped["Topic"] = relationship(back_populates="questions")
+    
     @property
     def tags(self) -> list[str]:
         return json.loads(self._tags)
@@ -95,6 +96,18 @@ class Question(Base):
     def stored_correct_answers(self, value: dict):
         self._stored_correct_answers = json.dumps(value)
 
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False)
+
+    course: Mapped["Course"] = relationship(back_populates="topics")
+    questions: Mapped[list["Question"]] = relationship(
+        back_populates="topic",
+        cascade="all, delete-orphan"
+    )
 
 class Variant(Base):
     __tablename__ = "variants"
