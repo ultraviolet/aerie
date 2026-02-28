@@ -43,6 +43,11 @@ def load_course(db: Session, course_path: str, user_id: int) -> Course:
         db.add(course)
     db.flush()
 
+    # Ensure container_tag is set (for Supermemory isolation)
+    if not course.container_tag:
+        course.container_tag = f"course_{course.id}"
+        db.flush()
+
     # Clear old questions and assessments for this course (reload)
     db.query(Question).filter(Question.course_id == course.id).delete()
     db.query(Assessment).filter(Assessment.course_id == course.id).delete()

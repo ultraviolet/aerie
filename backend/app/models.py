@@ -29,9 +29,12 @@ class Course(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     path: Mapped[str] = mapped_column(String, nullable=False)
 
+    container_tag: Mapped[str] = mapped_column(String, default="")
+
     user: Mapped["User"] = relationship(back_populates="courses")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     questions: Mapped[list["Question"]] = relationship(back_populates="course", cascade="all, delete-orphan")
+    documents: Mapped[list["Document"]] = relationship(back_populates="course", cascade="all, delete-orphan")
 
 
 class Assessment(Base):
@@ -68,6 +71,7 @@ class Question(Base):
     topic: Mapped[str] = mapped_column(String, default="")
     _tags: Mapped[str] = mapped_column("tags", Text, default="[]")
     question_html: Mapped[str] = mapped_column(Text, default="")
+    _stored_correct_answers: Mapped[str] = mapped_column("stored_correct_answers", Text, default="{}")
     has_server_py: Mapped[bool] = mapped_column(Boolean, default=False)
     single_variant: Mapped[bool] = mapped_column(Boolean, default=False)
     directory: Mapped[str] = mapped_column(String, default="")
@@ -82,6 +86,14 @@ class Question(Base):
     @tags.setter
     def tags(self, value: list[str]):
         self._tags = json.dumps(value)
+
+    @property
+    def stored_correct_answers(self) -> dict:
+        return json.loads(self._stored_correct_answers)
+
+    @stored_correct_answers.setter
+    def stored_correct_answers(self, value: dict):
+        self._stored_correct_answers = json.dumps(value)
 
 
 class Variant(Base):
@@ -145,3 +157,17 @@ class Submission(Base):
     @feedback.setter
     def feedback(self, value: dict):
         self._feedback = json.dumps(value)
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False)
+    supermemory_id: Mapped[str] = mapped_column(String, default="")
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    content_type: Mapped[str] = mapped_column(String, default="")
+    status: Mapped[str] = mapped_column(String, default="processing")
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    course: Mapped["Course"] = relationship(back_populates="documents")

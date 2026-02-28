@@ -41,10 +41,11 @@ def generate_variant(
     course_path: str,
     question_html: str,
     seed: int | None = None,
+    stored_correct_answers: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a variant for a question. Returns {params, correct_answers, rendered_html, seed}."""
-    qdir = Path(question_dir)
-    server_py = qdir / "server.py"
+    qdir = Path(question_dir) if question_dir else None
+    server_py = qdir / "server.py" if qdir else None
 
     if seed is None:
         seed = random.randint(0, 2**31)
@@ -62,7 +63,7 @@ def generate_variant(
     }
 
     # Execute server.py generate() if it exists
-    if server_py.exists():
+    if server_py and server_py.exists():
         random.seed(seed)
         try:
             mod = _import_server_module(str(server_py), course_path)
@@ -72,6 +73,9 @@ def generate_variant(
                 mod.prepare(data)
         except Exception:
             log.exception("Error running server.py generate() for %s", question_dir)
+    elif stored_correct_answers:
+        # AI-generated questions: use stored correct answers
+        data["correct_answers"] = stored_correct_answers
 
     # Render the question HTML with Mustache/Chevron using params
     rendered_html = question_html

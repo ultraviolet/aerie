@@ -36,6 +36,7 @@ def create_variant(question_id: int, db: Session = Depends(get_db), user: User =
         question_dir=q.directory,
         course_path=course.path if course else "",
         question_html=q.question_html,
+        stored_correct_answers=q.stored_correct_answers or None,
     )
 
     variant = Variant(question_id=q.id, user_id=user.id, seed=result["seed"])

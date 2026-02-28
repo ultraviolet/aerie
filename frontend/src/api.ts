@@ -1,4 +1,4 @@
-import type { Assessment, AssessmentDetail, AuthResponse, Course, Question, Submission, Variant } from "./types";
+import type { Assessment, AssessmentDetail, AuthResponse, Course, CourseDocument, GenerateRequest, GenerateResponse, Question, Submission, Variant } from "./types";
 
 const BASE = "http://localhost:8000/api";
 
@@ -67,5 +67,33 @@ export const api = {
     request<Submission>(`/variants/${variantId}/submit`, {
       method: "POST",
       body: JSON.stringify({ submitted_answers: answers }),
+    }),
+
+  // Documents
+  uploadDocument: async (courseId: number, file: File): Promise<CourseDocument> => {
+    const token = localStorage.getItem("prairie_token");
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/courses/${courseId}/documents`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`API error ${res.status}: ${text}`);
+    }
+    return res.json();
+  },
+  listDocuments: (courseId: number) =>
+    request<CourseDocument[]>(`/courses/${courseId}/documents`),
+  deleteDocument: (docId: number) =>
+    request<{ ok: boolean }>(`/documents/${docId}`, { method: "DELETE" }),
+
+  // Question Generation
+  generateQuestions: (courseId: number, req: GenerateRequest) =>
+    request<GenerateResponse>(`/courses/${courseId}/generate`, {
+      method: "POST",
+      body: JSON.stringify(req),
     }),
 };

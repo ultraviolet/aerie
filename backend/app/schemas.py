@@ -104,3 +104,32 @@ class SubmissionOut(BaseModel):
 class AssessmentDetailOut(BaseModel):
     assessment: AssessmentOut
     questions: list[QuestionOut]
+
+
+# -- Documents --
+
+
+class DocumentOut(BaseModel):
+    id: int
+    course_id: int
+    supermemory_id: str
+    filename: str
+    content_type: str
+    status: str
+    uploaded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# -- Question Generation --
+
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    topic: str = ""
+    num_questions: int = 1
+
+
+class GenerateResponse(BaseModel):
+    questions: list[QuestionOut]
+    context_used: list[str] = []
