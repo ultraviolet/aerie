@@ -158,4 +158,8 @@ export const api = {
     request<{ ok: boolean }>(`/courses/${courseId}`, {
       method: "DELETE",
     }),
+
+  // Knowledge Graph
+  getKnowledgeGraph: () =>
+    request<{ documents: unknown[]; pagination: unknown }>("/courses/graph/all"),
 };

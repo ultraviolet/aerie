@@ -5,6 +5,7 @@ import os
 import tempfile
 from typing import Any
 
+import httpx
 from supermemory import Supermemory
 
 log = logging.getLogger(__name__)
@@ -144,6 +145,60 @@ def get_user_profile(user_id: int, course_id: int) -> dict[str, list[str]]:
     except Exception:
         log.exception("Failed to get user profile (tag=%s)", tag)
         return empty
+
+
+_SM_API_BASE = "https://api.supermemory.ai"
+
+
+def _get_api_key() -> str:
+    key = os.environ.get("SUPERMEMORY_API_KEY")
+    if not key:
+        raise RuntimeError("SUPERMEMORY_API_KEY environment variable is not set")
+    return key
+
+
+def get_graph_data(container_tags: list[str], limit: int = 300) -> dict[str, Any]:
+    """Fetch documents with memory entries for the MemoryGraph component.
+
+    Uses the /v3/documents/documents endpoint which returns the full
+    DocumentWithMemories format that @supermemory/memory-graph expects.
+    """
+    api_key = _get_api_key()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = httpx.post(
+            f"{_SM_API_BASE}/v3/documents/documents",
+            headers=headers,
+            json={
+                "page": 1,
+                "limit": limit,
+                "sort": "createdAt",
+                "order": "desc",
+                "containerTags": container_tags,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        log.info(
+            "Graph data: %d documents for tags=%s",
+            len(data.get("documents", [])),
+            container_tags,
+        )
+        return data
+    except Exception:
+        log.exception("Failed to fetch graph data")
+        return {
+            "documents": [],
+            "pagination": {
+                "currentPage": 1, "limit": limit,
+                "totalItems": 0, "totalPages": 0,
+            },
+        }
 
 
 def search(query: str, container_tag: str, limit: int = 8) -> list[str]:
