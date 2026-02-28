@@ -55,6 +55,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+  getStreak: () =>
+    request<{
+      current_streak: number;
+      days: { date: string; count: number }[];
+    }>("/auth/streak"),
 
   // Courses
   listCourses: () => request<Course[]>("/courses"),

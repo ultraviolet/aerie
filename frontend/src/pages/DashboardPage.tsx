@@ -32,39 +32,44 @@ export default function DashboardPage() {
   const recentCardRef = useRef<HTMLDivElement>(null);
   const [recentLimit, setRecentLimit] = useState(4);
 
+  const [streak, setStreak] = useState(0);
+  const [streakDays, setStreakDays] = useState<{ date: string; count: number }[]>([]);
+
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
     api.recentAssessments().then(setRecentItems).catch(console.error);
+    api.getStreak().then((data) => {
+      setStreak(data.current_streak);
+      setStreakDays(data.days);
+    }).catch(console.error);
   }, []);
 
-  // Updated ResizeObserver for the slimmer 48px items
-
-  const recentContentRef = useRef<HTMLDivElement>(null);
-  const recentItemRef = useRef<HTMLDivElement>(null);
+  // Dynamically calculate how many recent items fit in the card.
+  // We measure the *card* height (stable from grid layout) and subtract
+  // the header, so item count changes don't feed back into the measurement.
 
   useEffect(() => {
     const calculate = () => {
-      const container = recentContentRef.current;
-      if (!container) return;
+      const card = recentCardRef.current;
+      if (!card) return;
 
-      const containerHeight = container.clientHeight;
-      // Fixed height from your RecentItem (74px) + gap-3 (12px)
-      const itemHeight = 74;
-      const gap = 12;
+      const header = card.querySelector("[data-recent-header]");
+      const headerHeight = header ? header.getBoundingClientRect().height : 57;
+      const paddingY = 16; // pb-4
+      const available = card.clientHeight - headerHeight - paddingY;
 
-      // The formula: (Total Height + Gap) / (Item Height + Gap)
-      // We add one gap to the total height because the last item doesn't have a gap after it
-      const fit = Math.floor((containerHeight + gap) / (itemHeight + gap));
+      const itemHeight = 74; // h-[74px] on RecentItem
+      const gap = 12; // gap-3
+      const fit = Math.floor((available + gap) / (itemHeight + gap));
 
       setRecentLimit(Math.max(1, fit));
     };
 
     const observer = new ResizeObserver(calculate);
-    if (recentContentRef.current) observer.observe(recentContentRef.current);
-
-    calculate(); // Initial call
+    if (recentCardRef.current) observer.observe(recentCardRef.current);
+    calculate();
     return () => observer.disconnect();
-  }, [recentItems]); // Re-run if data changes
+  }, []);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full mt-0 pb-10 min-h-0 overflow-hidden animate-in fade-in duration-700">
@@ -78,7 +83,7 @@ export default function DashboardPage() {
                 <Flame className="size-6 text-orange-500" />
               </div>
               <div>
-                <p className="text-xl font-black leading-none">12</p>
+                <p className="text-xl font-black leading-none">{streak}</p>
                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
                   Current Streak
                 </p>
@@ -86,20 +91,19 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1 overflow-hidden">
               <div className="flex flex-wrap gap-1.5">
-                {[...Array(28)].map((_, i) => {
-                  const intensity = [0.2, 0.5, 0.8, 1.0][
-                    Math.floor(Math.random() * 4)
-                  ];
-                  const isActive = Math.random() > 0.3;
+                {(streakDays.length > 0 ? streakDays : Array.from({ length: 28 }, () => ({ date: "", count: 0 }))).map((day, i) => {
+                  const maxCount = Math.max(1, ...streakDays.map((d) => d.count));
+                  const intensity = day.count > 0 ? Math.max(0.2, day.count / maxCount) : 0;
                   return (
                     <div
                       key={i}
                       className="size-3.5 rounded-[2px] border"
+                      title={day.date ? `${day.date}: ${day.count} submission${day.count !== 1 ? "s" : ""}` : ""}
                       style={{
-                        backgroundColor: isActive
+                        backgroundColor: day.count > 0
                           ? `rgba(249, 115, 22, ${intensity})`
                           : "rgba(51, 65, 85, 1)",
-                        borderColor: isActive
+                        borderColor: day.count > 0
                           ? "rgba(249, 115, 22, 0.4)"
                           : "rgba(71, 85, 105, 1)",
                       }}
@@ -145,7 +149,7 @@ export default function DashboardPage() {
             className="bg-slate-100 border-slate-200 flex flex-col h-full shadow-inner min-h-0"
             style={{ height: "100%", minHeight: 0 }}
           >
-            <CardHeader className="shrink-0 border-b border-slate-200 pt-0 pb-6">
+            <CardHeader data-recent-header className="shrink-0 border-b border-slate-200 pt-0 pb-6">
               <div className="flex justify-between items-center px-1">
                 <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                   Recent
@@ -154,23 +158,20 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent
-              ref={recentContentRef}
               className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 pt-0 min-h-0"
             >
               {recentItems.length > 0 ? (
-                recentItems.slice(0, recentLimit).map((item, i) => (
+                recentItems.slice(0, recentLimit).map((item) => (
                   <Link
                     key={item.assessment_id}
                     to={`/assessments/${item.assessment_id}`}
                     className="block no-underline"
                   >
-                    <div ref={i === 0 ? recentItemRef : undefined}>
-                      <RecentItem
-                        topic={item.title}
-                        score={item.score_pct ?? 0}
-                        courseName={item.course_title}
-                      />
-                    </div>
+                    <RecentItem
+                      topic={item.title}
+                      score={item.score_pct ?? 0}
+                      courseName={item.course_title}
+                    />
                   </Link>
                 ))
               ) : (
