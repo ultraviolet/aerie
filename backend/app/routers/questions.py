@@ -423,8 +423,12 @@ def create_similar_question(
     matched_assessment = None
     for a in db.query(Assessment).filter(Assessment.course_id == course.id).all():
         if q.qid in a.question_ids:
-            current_ids = a.question_ids
-            current_ids.append(new_question.qid)
+            current_ids = list(a.question_ids)
+            try:
+                idx = current_ids.index(q.qid)
+                current_ids.insert(idx + 1, new_question.qid)
+            except ValueError:
+                current_ids.append(new_question.qid)
             a.question_ids = current_ids
             matched_assessment = a
             break

@@ -398,58 +398,58 @@ export default function QuestionPage() {
               <Separator />
 
               <div className="flex flex-col gap-2">
-                <div className="flex gap-3">
-                  {submission == null ? (
-                    <>
+                {submission == null ? (
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="flex-1 font-bold"
+                    >
+                      {submitting ? "Grading..." : "Submit"}
+                    </Button>
+                    <Button variant="outline" onClick={generateNewVariant}>
+                      Reset
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {assessmentId && nextQuestionId ? (
                       <Button
-                        onClick={handleSubmit}
-                        disabled={submitting}
-                        className="flex-1 font-bold"
+                        onClick={() =>
+                          navigate(
+                            `/questions/${nextQuestionId}?assessment=${assessmentId}`,
+                          )
+                        }
+                        className="w-full font-bold"
                       >
-                        {submitting ? "Grading..." : "Submit"}
+                        Next Question &rarr;
                       </Button>
-                      <Button variant="outline" onClick={generateNewVariant}>
-                        Reset
+                    ) : assessmentId && isLastQuestion ? (
+                      <Button
+                        onClick={() => navigate(`/assessments/${assessmentId}`)}
+                        className="w-full font-bold"
+                      >
+                        Finish Assessment
                       </Button>
-                    </>
-                  ) : assessmentId && nextQuestionId ? (
+                    ) : null}
                     <Button
-                      onClick={() =>
-                        navigate(
-                          `/questions/${nextQuestionId}?assessment=${assessmentId}`,
-                        )
-                      }
-                      className="flex-1 font-bold"
-                    >
-                      Next Question &rarr;
-                    </Button>
-                  ) : assessmentId && isLastQuestion ? (
-                    <Button
-                      onClick={() => navigate(`/assessments/${assessmentId}`)}
-                      className="flex-1 font-bold"
-                    >
-                      Finish Assessment
-                    </Button>
-                  ) : (
-                    <Button
+                      variant="outline"
                       onClick={generateNewVariant}
-                      className="flex-1 font-bold"
+                      className="w-full"
                     >
-                      New Variant
+                      Generate New Variant
                     </Button>
-                  )}
-                </div>
-                {submission != null && (
-                  <Button
-                    variant="outline"
-                    onClick={handleGenerateSimilar}
-                    disabled={generatingSimilar}
-                    className="w-full"
-                  >
-                    {generatingSimilar
-                      ? "Generating..."
-                      : "Generate Similar Question"}
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={handleGenerateSimilar}
+                      disabled={generatingSimilar}
+                      className="w-full text-muted-foreground"
+                    >
+                      {generatingSimilar
+                        ? "Generating..."
+                        : "Generate Similar Question"}
+                    </Button>
+                  </>
                 )}
               </div>
 

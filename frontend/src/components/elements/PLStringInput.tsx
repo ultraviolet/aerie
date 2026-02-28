@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import MathLabel from "./MathLabel";
 
 interface Props {
   answersName: string;
@@ -11,8 +11,8 @@ interface Props {
 
 export default function PLStringInput({ answersName, label, value, onChange, disabled }: Props) {
   return (
-    <div className="space-y-2">
-      {label && <Label htmlFor={answersName}>{label}</Label>}
+    <div className="flex items-center gap-2">
+      {label && <MathLabel text={label} />}
       <Input
         id={answersName}
         type="text"

@@ -247,12 +247,13 @@ A question consists of:
 
 IMPORTANT RULES:
 - Each `answers-name` in the HTML must have a corresponding key in `correct_answers`
-- You MUST base your questions on the COURSE MATERIAL CONTEXT provided below. Do NOT generate generic questions from your own knowledge. If context is provided, the question MUST test concepts, facts, or examples found in that context.
-- If no course material context is provided, you may generate a question based on the user's prompt alone, but prefer to note that no course materials were available.
+- The USER REQUEST is your PRIMARY directive — always generate questions that match what the user asked for.
+- If COURSE MATERIAL CONTEXT is provided, use it as a reference to ground your questions in the course's notation, terminology, and examples. But do NOT ignore the user's prompt in favor of the context — if the user asks for "basic addition", generate basic addition questions even if the context is about something else.
+- If no course material context is provided, generate questions based on the user's prompt using your own knowledge.
 - Make questions educational and appropriately challenging
 - Vary question types across the batch — use different types from those available below
 - Each question should cover a DIFFERENT concept or aspect of the material — avoid repetition
-- Always include an `<pl-answer-panel>` with a clear explanation
+- EVERY question MUST include a `<pl-answer-panel>` with a clear, detailed explanation of the correct answer. This is MANDATORY — never omit it.
 - Return ONLY valid JSON, no markdown fences
 
 AVAILABLE QUESTION TYPES (use ONLY these):
@@ -521,6 +522,27 @@ def _fetch_weakness_context(user_id: int, course_id: int, scope: str | None = No
     return context
 
 
+def _ensure_answer_panel(question_html: str, correct_answers: dict) -> str:
+    """Ensure question_html contains a <pl-answer-panel>. Add a basic one if missing."""
+    if not question_html:
+        return question_html
+    if "<pl-answer-panel>" in question_html.lower():
+        return question_html
+
+    # Build a simple explanation from correct_answers
+    lines = ["<pl-answer-panel>", "<markdown>", "**Answer:**", ""]
+    for key, val in correct_answers.items():
+        if isinstance(val, list):
+            lines.append(f"- **{key}**: {', '.join(str(v) for v in val)}")
+        elif isinstance(val, dict):
+            lines.append(f"- **{key}**: {val}")
+        else:
+            lines.append(f"- **{key}**: {val}")
+    lines.extend(["", "</markdown>", "</pl-answer-panel>"])
+    log.info("Injected missing <pl-answer-panel> into question HTML")
+    return question_html + "\n" + "\n".join(lines)
+
+
 def _fix_correct_answers(question_html: str, correct_answers: dict) -> dict:
     """Ensure correct_answers values match the actual element content in the HTML.
 
@@ -671,7 +693,7 @@ def generate_questions(
     context_section = ""
     if context_chunks:
         context_section = (
-            "COURSE MATERIAL CONTEXT (use this to generate the questions):\n"
+            "COURSE MATERIAL CONTEXT (use as reference for terminology and style, but follow the user request):\n"
             + "\n---\n".join(context_chunks)
             + "\n\n"
         )
@@ -679,7 +701,7 @@ def generate_questions(
     else:
         log.warning("No RAG context available — Gemini will generate without course materials")
 
-    user_prompt = f"{context_section}USER REQUEST: {prompt}"
+    user_prompt = f"{context_section}USER REQUEST (this is the primary instruction — follow it): {prompt}"
     if topics:
         user_prompt += f"\nFOCUS ON TOPICS: {', '.join(topics)}"
     if num_questions > 1:
@@ -725,8 +747,12 @@ def generate_questions(
 
     log.info("Gemini returned %d question(s)", len(items))
 
-    # 5b. Fix correct_answers to match actual HTML answer text
+    # 5b. Ensure answer panels exist and fix correct_answers
     for item in items:
+        item["question_html"] = _ensure_answer_panel(
+            item.get("question_html", ""),
+            item.get("correct_answers", {}),
+        )
         item["correct_answers"] = _fix_correct_answers(
             item.get("question_html", ""),
             item.get("correct_answers", {}),
@@ -884,7 +910,7 @@ def generate_questions_stream(
     context_section = ""
     if context_chunks:
         context_section = (
-            "COURSE MATERIAL CONTEXT (use this to generate the questions):\n"
+            "COURSE MATERIAL CONTEXT (use as reference for terminology and style, but follow the user request):\n"
             + "\n---\n".join(context_chunks)
             + "\n\n"
         )
@@ -892,7 +918,7 @@ def generate_questions_stream(
     user_prompt = ""
     if weakness_context:
         user_prompt += weakness_context + "\n\n"
-    user_prompt += f"{context_section}USER REQUEST: {effective_prompt}"
+    user_prompt += f"{context_section}USER REQUEST (this is the primary instruction — follow it): {effective_prompt}"
     if topics:
         user_prompt += f"\nFOCUS ON TOPICS: {', '.join(topics)}"
     if num_questions > 1:
@@ -930,9 +956,13 @@ def generate_questions_stream(
     else:
         items = [data]
 
-    # Step 5: Fix answers + save
+    # Step 5: Ensure answer panels + fix answers + save
     yield ("step", {"step": "finalizing", "message": f"Validating {len(items)} question{'s' if len(items) != 1 else ''}..."})
     for item in items:
+        item["question_html"] = _ensure_answer_panel(
+            item.get("question_html", ""),
+            item.get("correct_answers", {}),
+        )
         item["correct_answers"] = _fix_correct_answers(
             item.get("question_html", ""),
             item.get("correct_answers", {}),
@@ -1117,7 +1147,11 @@ def generate_similar_question(
     if "questions" in data and isinstance(data["questions"], list):
         data = data["questions"][0]
 
-    # 7. Fix correct_answers
+    # 7. Ensure answer panel + fix correct_answers
+    data["question_html"] = _ensure_answer_panel(
+        data.get("question_html", ""),
+        data.get("correct_answers", {}),
+    )
     data["correct_answers"] = _fix_correct_answers(
         data.get("question_html", ""),
         data.get("correct_answers", {}),
