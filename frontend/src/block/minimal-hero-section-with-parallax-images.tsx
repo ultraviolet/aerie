@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 
 export const LandingImages = () => {
   return (
-    <div className="relative mt-8 h-full w-full perspective-distant">
+    <div className="relative h-full w-full perspective-distant">
       <motion.div
         initial={{ opacity: 0, y: -100 }}
         animate={{ opacity: 1, y: 0 }}
