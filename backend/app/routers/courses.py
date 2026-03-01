@@ -31,7 +31,7 @@ def _all_topics(course: Course, db: Session) -> list[str]:
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
-@router.get("/", response_model=list[CourseOut])
+@router.get("", response_model=list[CourseOut])
 def list_courses(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return db.query(Course).filter(Course.user_id == user.id).all()
 
@@ -73,7 +73,7 @@ def get_course(course_id: int, db: Session = Depends(get_db), user: User = Depen
     course.topics = _all_topics(course, db)
     return course
 
-@router.post("/", response_model=CourseOut)
+@router.post("", response_model=CourseOut)
 def create_course_endpoint(
     req: CourseCreateRequest,
     db: Session = Depends(get_db),
