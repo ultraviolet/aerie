@@ -12,7 +12,7 @@ import type {
   Variant,
 } from "./types";
 
-const BASE = "http://localhost:8000/api";
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem("prairie_token");
