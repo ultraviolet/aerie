@@ -45,6 +45,7 @@ function AppRoutes() {
         <Route path="/courses/:id" element={<CoursePage />} />
         <Route path="/assessments/:id" element={<AssessmentPage />} />
         <Route path="/questions/:id" element={<QuestionPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
   );

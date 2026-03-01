@@ -1,19 +1,17 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "@/api";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AuthPage() {
   const { login } = useAuth();
+  const [searchParams] = useSearchParams();
+  const defaultTab =
+    searchParams.get("tab") === "register" ? "register" : "login";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -47,16 +45,21 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 animate-in fade-in duration-700">
+      <Card className="w-full max-w-md border-2 border-slate-300 shadow-none p-0">
+        {/* Header */}
+        <div className="border-b-2 border-slate-300 px-6 py-5 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
             aerie
-          </CardTitle>
-          <CardDescription>AI-powered self-study platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          </h1>
+          <p className="mt-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            AI-powered self-study
+          </p>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 pb-6 pt-0">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">log in</TabsTrigger>
               <TabsTrigger value="register">sign up</TabsTrigger>
@@ -130,7 +133,7 @@ export default function AuthPage() {
               </Button>
             </TabsContent>
           </Tabs>
-        </CardContent>
+        </div>
       </Card>
     </div>
   );
