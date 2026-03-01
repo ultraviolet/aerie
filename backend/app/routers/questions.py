@@ -365,7 +365,6 @@ def chat_about_question(
             contents=contents,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                temperature=0.7,
                 max_output_tokens=1024,
                 tools=[_CHAT_TOOLS],
             ),
@@ -440,11 +439,10 @@ def chat_about_question(
                 contents=contents,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    temperature=0.7,
                     max_output_tokens=1024,
                 ),
             )
-            reply = follow_up.text.strip()
+            reply = (follow_up.text or "").strip()
 
         log.info("Chat response for variant %d: %d chars, has_image=%s", variant_id, len(reply), bool(image_data))
         return ChatResponse(reply=reply, image=image_data)

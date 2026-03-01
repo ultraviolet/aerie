@@ -164,7 +164,7 @@ export default function QuestionPage() {
     try {
       const res = await api.chatAboutQuestion(variant.id, {
         message: userMsg,
-        history: messages, // send previous messages (before this one)
+        history: messages.map(({ role, content }) => ({ role, content })), // strip image data to keep payload small
         question_html: variant.rendered_html,
         submitted_answers: answers,
         correct_answers:
