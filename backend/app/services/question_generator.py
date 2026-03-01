@@ -729,7 +729,7 @@ def generate_questions(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-flash-preview",
+        model="gemini-3.1-pro-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -946,7 +946,7 @@ def generate_questions_stream(
     max_tokens = min(4096 * num_questions, 65536)
     client = _get_gemini_client()
     response = client.models.generate_content(
-        model="gemini-3-flash-preview",
+        model="gemini-3.1-pro-preview",
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
