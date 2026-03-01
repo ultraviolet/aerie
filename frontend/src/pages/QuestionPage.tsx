@@ -45,7 +45,7 @@ export default function QuestionPage() {
   // Chat State
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
-    { role: "user" | "ai"; content: string }[]
+    { role: "user" | "ai"; content: string; image?: string }[]
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
@@ -174,7 +174,7 @@ export default function QuestionPage() {
         feedback: (submission.feedback as Record<string, unknown>) ?? {},
         course_id: question?.course_id ?? null,
       }, controller.signal);
-      setMessages((prev) => [...prev, { role: "ai", content: res.reply }]);
+      setMessages((prev) => [...prev, { role: "ai", content: res.reply, image: res.image ?? undefined }]);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages((prev) => [
@@ -372,6 +372,13 @@ export default function QuestionPage() {
                                 {m.content}
                               </ReactMarkdown>
                             </div>
+                            {m.image && (
+                              <img
+                                src={m.image}
+                                alt="Diagram"
+                                className="mt-2 max-w-full rounded-lg border border-slate-200"
+                              />
+                            )}
                           </div>
                         )}
                       </div>

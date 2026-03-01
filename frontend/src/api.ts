@@ -209,7 +209,7 @@ export const api = {
     },
     signal?: AbortSignal,
   ) =>
-    request<{ reply: string }>(`/variants/${variantId}/chat`, {
+    request<{ reply: string; image: string | null }>(`/variants/${variantId}/chat`, {
       method: "POST",
       body: JSON.stringify(body),
       signal,

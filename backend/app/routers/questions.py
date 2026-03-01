@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -209,6 +210,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    image: str | None = None
 
 
 CHAT_SYSTEM_PROMPT = """\
@@ -230,6 +232,10 @@ student's learning. Call it when:
 - You notice a pattern (e.g. repeated mistakes on a topic)
 - The student demonstrates strong understanding of something
 Do NOT call save_memory for every message — only when genuinely useful.
+
+You also have a generate_diagram tool. Use it when the student explicitly asks \
+for a visual explanation, diagram, chart, or illustration. Provide a detailed \
+prompt describing what to draw, including labels and relationships.
 
 QUESTION CONTEXT:
 {question_context}
@@ -266,7 +272,28 @@ _SAVE_MEMORY_DECL = genai.types.FunctionDeclaration(
     ),
 )
 
-_SAVE_MEMORY_TOOL = genai.types.Tool(function_declarations=[_SAVE_MEMORY_DECL])
+_GENERATE_DIAGRAM_DECL = genai.types.FunctionDeclaration(
+    name="generate_diagram",
+    description=(
+        "Generate a diagram or image to help the student understand a concept "
+        "visually. Use when the student asks for a visual explanation, diagram, "
+        "chart, or illustration."
+    ),
+    parameters=genai.types.Schema(
+        type="OBJECT",
+        properties={
+            "prompt": genai.types.Schema(
+                type="STRING",
+                description="Detailed description of the diagram to generate, including labels, relationships, and any text that should appear in the image",
+            ),
+        },
+        required=["prompt"],
+    ),
+)
+
+_CHAT_TOOLS = genai.types.Tool(
+    function_declarations=[_SAVE_MEMORY_DECL, _GENERATE_DIAGRAM_DECL]
+)
 
 
 @router.post("/variants/{variant_id}/chat", response_model=ChatResponse)
@@ -340,35 +367,73 @@ def chat_about_question(
                 system_instruction=system_prompt,
                 temperature=0.7,
                 max_output_tokens=1024,
-                tools=[_SAVE_MEMORY_TOOL],
+                tools=[_CHAT_TOOLS],
             ),
         )
 
-        # Handle function calls — Gemini may call save_memory + return text
+        # Handle function calls — Gemini may call save_memory / generate_diagram + return text
         reply_parts: list[str] = []
+        image_data: str | None = None
+        function_responses: list[genai.types.Part] = []
+
         for candidate in response.candidates or []:
             for part in candidate.content.parts or []:
                 if part.text:
                     reply_parts.append(part.text)
-                if part.function_call and part.function_call.name == "save_memory":
-                    args = part.function_call.args or {}
-                    memory_text = args.get("memory", "")
-                    if memory_text and course_id:
-                        sm.add_user_memory(memory_text, user.id, course_id)
-                        log.info("Gemini saved memory for user %d: %s", user.id, memory_text[:120])
+                if part.function_call:
+                    fc = part.function_call
+                    args = fc.args or {}
+
+                    if fc.name == "save_memory":
+                        memory_text = args.get("memory", "")
+                        if memory_text and course_id:
+                            sm.add_user_memory(memory_text, user.id, course_id)
+                            log.info("Gemini saved memory for user %d: %s", user.id, memory_text[:120])
+                        function_responses.append(genai.types.Part(
+                            function_response=genai.types.FunctionResponse(
+                                name="save_memory",
+                                response={"status": "saved"},
+                            )
+                        ))
+
+                    elif fc.name == "generate_diagram":
+                        diagram_prompt = args.get("prompt", "")
+                        if diagram_prompt:
+                            log.info("Generating diagram for variant %d: %s", variant_id, diagram_prompt[:120])
+                            try:
+                                img_response = client.models.generate_content(
+                                    model="gemini-3.1-flash-image-preview",
+                                    contents=diagram_prompt,
+                                    config=genai.types.GenerateContentConfig(
+                                        response_modalities=["IMAGE"],
+                                    ),
+                                )
+                                for img_candidate in img_response.candidates or []:
+                                    for img_part in img_candidate.content.parts or []:
+                                        if img_part.inline_data:
+                                            b64 = base64.b64encode(img_part.inline_data.data).decode()
+                                            mime = img_part.inline_data.mime_type or "image/png"
+                                            image_data = f"data:{mime};base64,{b64}"
+                                            break
+                                    if image_data:
+                                        break
+                            except Exception:
+                                log.exception("Diagram generation failed")
+                        function_responses.append(genai.types.Part(
+                            function_response=genai.types.FunctionResponse(
+                                name="generate_diagram",
+                                response={"status": "generated" if image_data else "failed"},
+                            )
+                        ))
 
         reply = " ".join(reply_parts).strip()
 
-        # If Gemini only returned a function call with no text, do a follow-up
-        if not reply:
-            # Send the function result back and get the text response
+        # If Gemini only returned function calls with no text, do a follow-up
+        if not reply and function_responses:
             contents.append(response.candidates[0].content)
             contents.append(genai.types.Content(
                 role="user",
-                parts=[genai.types.Part(function_response=genai.types.FunctionResponse(
-                    name="save_memory",
-                    response={"status": "saved"},
-                ))],
+                parts=function_responses,
             ))
             follow_up = client.models.generate_content(
                 model="gemini-3-flash-preview",
@@ -381,8 +446,8 @@ def chat_about_question(
             )
             reply = follow_up.text.strip()
 
-        log.info("Chat response for variant %d: %d chars", variant_id, len(reply))
-        return ChatResponse(reply=reply)
+        log.info("Chat response for variant %d: %d chars, has_image=%s", variant_id, len(reply), bool(image_data))
+        return ChatResponse(reply=reply, image=image_data)
     except Exception as e:
         log.exception("Chat failed for variant %d", variant_id)
         raise HTTPException(502, f"Chat failed: {e}")
