@@ -72,15 +72,17 @@ export default function DashboardPage() {
       {/* LEFT & CENTER STACK */}
       <div className="lg:col-span-3 flex flex-col gap-6 h-full min-h-0">
         {/* 1. STREAK GRID */}
-        <Card className="bg-slate-800 border-slate-700 shadow-xl shrink-0">
+        <Card className="bg-slate-600 border-slate-500 shrink-0 shadow-none">
           <CardContent className="py-4 flex flex-col md:flex-row items-center gap-8 text-white">
-            <div className="flex items-center gap-3 shrink-0 border-r border-slate-600 pr-6">
-              <div className="p-2 rounded-full bg-orange-500/20">
+            <div className="flex items-center gap-3 shrink-0 border-r border-slate-400/40 pr-6">
+              <div className="p-2 rounded-full bg-orange-500/50">
                 <Flame className="size-6 text-orange-500" />
               </div>
               <div>
-                <p className="text-xl font-black leading-none">{streak}</p>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
+                <p className="text-2xl font-black leading-none text-white text-shadow-lg">
+                  {streak}
+                </p>
+                <p className="text-[12px] font-bold text-white/90 uppercase tracking-tighter text-shadow-lg">
                   Current Streak
                 </p>
               </div>
@@ -110,11 +112,11 @@ export default function DashboardPage() {
                         backgroundColor:
                           day.count > 0
                             ? `rgba(249, 115, 22, ${intensity})`
-                            : "rgba(51, 65, 85, 1)",
+                            : "rgba(148, 163, 184, 0.25)",
                         borderColor:
                           day.count > 0
-                            ? "rgba(249, 115, 22, 0.4)"
-                            : "rgba(71, 85, 105, 1)",
+                            ? "rgba(249, 115, 22, 1)"
+                            : "rgba(148, 163, 184, 1)",
                       }}
                     />
                   );
@@ -125,26 +127,27 @@ export default function DashboardPage() {
         </Card>
 
         {/* 2. COURSE LIBRARY (full width of left column) */}
-        <Card
-          className="flex-1 flex flex-col bg-white border-slate-200 overflow-hidden p-0 relative min-h-0 [&>div]:flex-1 [&>div]:min-h-0"
-        >
-          <div className="bg-slate-900 px-6 py-6 shrink-0 flex items-center justify-between border-b border-slate-800 rounded-t-xl">
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white m-0">
-              Course Library
-            </h2>
+        <Card className="flex-1 flex flex-col bg-transparent border-2 border-slate-300 overflow-hidden p-0 relative min-h-0 [&>div]:flex-1 [&>div]:min-h-0 [&>div]:gap-0 shadow-none">
+          <div className="px-6 py-5 shrink-0 flex items-center justify-between border-b-2 border-slate-300 rounded-t-xl">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 rounded-lg border border-slate-300">
+                <BookOpen className="size-4 text-slate-500" />
+              </div>
+              <h2 className="text-md font-black uppercase tracking-[0.2em] text-slate-800 m-0">
+                Course Library
+              </h2>
+            </div>
             <Button
               variant="outline"
               size="icon"
-              className="size-8 bg-slate-600 border-slate-700 text-white hover:bg-slate-100"
+              className="size-8 border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               onClick={() => setShowCreateCourse(true)}
             >
               <Plus className="size-4" />
             </Button>
           </div>
-          <div
-            className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar"
-          >
-            <div className="pb-4 px-4 pt-0 space-y-3">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar">
+            <div className="divide-y divide-slate-200">
               {courses.length > 0 ? (
                 courses.map((c) => (
                   <Link
@@ -152,19 +155,19 @@ export default function DashboardPage() {
                     to={`/courses/${c.id}`}
                     className="block group"
                   >
-                    <div className="flex items-center gap-4 px-4 py-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
+                    <div className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
                       <div className="flex flex-col overflow-hidden flex-1">
-                        <span className="text-base truncate font-bold text-slate-900 group-hover:text-primary transition-colors font-mono">
+                        <span className="text-base truncate font-semibold text-slate-800 group-hover:text-slate-600 transition-colors font-mono">
                           {c.title || c.name}
                         </span>
                       </div>
-                      <ArrowRight className="size-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                      <ArrowRight className="size-5 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-1 transition-all" />
                     </div>
                   </Link>
                 ))
               ) : (
                 <div className="py-20 flex flex-col items-center justify-center opacity-40">
-                  <p className="text-xs font-bold uppercase tracking-widest">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                     Library Empty
                   </p>
                 </div>
@@ -177,25 +180,25 @@ export default function DashboardPage() {
       {/* 3. RECENT (right column) */}
       <Card
         ref={recentCardRef}
-        className="lg:col-span-2 flex flex-col h-full border-slate-500/50 overflow-hidden min-h-0 [&>div]:flex-1 [&>div]:min-h-0 pt-0"
-        style={{ height: "100%", minHeight: 0, background: "linear-gradient(to bottom, #2e3a4e 0%, #3a4d68 14%, #4b6282 35%, #5e7a9e 65%, #6b8bb0 100%)" }}
+        className="lg:col-span-2 flex flex-col h-full border-2 bg-slate-400 border-slate-300 overflow-hidden min-h-0 [&>div]:flex-1 [&>div]:min-h-0 [&>div]:gap-0 pt-0 shadow-none"
+        style={{ height: "100%", minHeight: 0 }}
       >
         <div
           data-recent-header
-          className="px-6 py-5 shrink-0 flex items-center justify-between"
+          className="px-6 py-5 shrink-0 flex items-center justify-between border-b-2 border-slate-300"
         >
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-white/10">
-              <History className="size-4 text-white/70" />
+            <div className="p-1.5 rounded-lg border border-slate-300">
+              <History className="size-4 text-white/90" />
             </div>
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white m-0">
+            <h2 className="text-md font-black uppercase tracking-[0.2em] text-white/90 text-shadow-xl m-0">
               Recent
             </h2>
           </div>
         </div>
         <CardContent
           data-recent-content
-          className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 pt-0 min-h-0"
+          className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 pt-3 min-h-0"
         >
           {recentItems.length > 0 ? (
             recentItems.slice(0, recentLimit).map((item) => (
@@ -213,7 +216,7 @@ export default function DashboardPage() {
             ))
           ) : (
             <div className="h-full flex flex-col items-center justify-center opacity-30">
-              <BookOpen className="size-8 text-white" />
+              <BookOpen className="size-8 text-slate-400" />
             </div>
           )}
         </CardContent>
@@ -250,24 +253,27 @@ function RecentItem({
   };
 
   const getScoreTextColor = (s: number) => {
-    if (s >= 90) return "text-emerald-400";
-    if (s >= 70) return "text-amber-400";
-    return "text-rose-400";
+    if (s >= 90) return "text-emerald-600";
+    if (s >= 70) return "text-amber-600";
+    return "text-rose-600";
   };
 
   return (
-    <div className="group relative bg-white/15 border border-white/10 rounded-xl p-4 transition-all duration-200 hover:bg-white/20 active:scale-[0.99] cursor-pointer overflow-hidden h-[74px]">
+    <div
+      className="group relative border border-slate-300 rounded-md p-4 transition-all duration-150 hover:bg-slate-50 hover:border-slate-400 active:scale-[0.99] cursor-pointer overflow-hidden h-[74px]"
+      style={{ background: "#b8c8db" }}
+    >
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col min-w-0 gap-1">
           {/* Course Tag */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/50 truncate">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate">
               {courseName || "General"}
             </span>
           </div>
 
           {/* Assessment Title */}
-          <h3 className="text-sm font-bold text-white truncate group-hover:text-slate-100 transition-colors">
+          <h3 className="text-md font-bold font-mono text-black truncate group-hover:text-white transition-colors font-shadow-xl">
             {topic}
           </h3>
         </div>
@@ -282,15 +288,15 @@ function RecentItem({
               )}
             >
               {score}
-              <span className="text-[10px] text-white/30 ml-0.5">%</span>
+              <span className="text-[10px] text-slate-500 ml-0.5">%</span>
             </span>
-            <ArrowRight className="size-4 text-white/30 transition-all group-hover:text-white group-hover:translate-x-1" />
+            <ArrowRight className="size-4 text-slate-500 transition-all group-hover:text-slate-500 group-hover:translate-x-1" />
           </div>
 
           {/* Mini progress bar under the number */}
-          <div className="w-12 h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
+          <div className="w-12 h-1 bg-slate-400 rounded-sm mt-1 overflow-hidden">
             <div
-              className={cn("h-full rounded-full", getStatusColor(score))}
+              className={cn("h-full rounded-sm", getStatusColor(score))}
               style={{ width: `${score}%` }}
             />
           </div>
