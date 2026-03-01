@@ -5,7 +5,7 @@ import { Plus, History, ArrowRight, Flame, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/api";
 import type { Course, RecentAssessment } from "@/types";
 import CreateCourseForm from "@/components/elements/CreateCourseForm";

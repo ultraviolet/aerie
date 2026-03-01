@@ -8,7 +8,6 @@ import type {
   GenerateStepEvent,
   Question,
 } from "@/types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -69,7 +68,7 @@ export default function CoursePage() {
   const [error, setError] = useState("");
 
   const [isEditingName, setIsEditingName] = useState(false);
-  const [isConfirmingEdit, setIsConfirmingEdit] = useState(false);
+
   const [editName, setEditName] = useState("");
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -89,7 +88,6 @@ export default function CoursePage() {
   const handleSaveName = async () => {
     if (!editName.trim() || editName === course?.name) {
       setIsEditingName(false);
-      setIsConfirmingEdit(false);
       return;
     }
 
@@ -99,7 +97,6 @@ export default function CoursePage() {
       const updated = await api.getCourse(courseId);
       setCourse(updated);
       setIsEditingName(false);
-      setIsConfirmingEdit(false);
     } catch (e) {
       setError(String(e));
     } finally {
