@@ -33,9 +33,9 @@ export default function AuthPage() {
     } catch (e) {
       const msg = String(e);
       if (msg.includes("409")) {
-        setError("Username already taken.");
+        setError("username already taken.");
       } else if (msg.includes("401")) {
-        setError("Invalid username or password.");
+        setError("invalid username or password.");
       } else {
         setError("Something went wrong. Is the server running?");
       }

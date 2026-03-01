@@ -31,8 +31,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) {
-    if (res.status === 401) {
-      // Token expired or invalid — clear it
+    if (res.status === 401 && !path.startsWith("/auth/")) {
+      // Token expired or invalid — clear it (skip for login/register endpoints)
       localStorage.removeItem("prairie_token");
       localStorage.removeItem("prairie_user");
       window.location.href = "/";
