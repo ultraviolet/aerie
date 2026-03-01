@@ -319,7 +319,8 @@ A question consists of:
 
 IMPORTANT RULES:
 - Each `answers-name` must have a corresponding key in `correct_answers`
-- Base your question on the COURSE MATERIAL CONTEXT provided below
+- Your PRIMARY goal is to create a question that closely mirrors the ORIGINAL QUESTION in structure, concepts, and difficulty — just with different specific values, scenarios, or examples
+- Use the COURSE MATERIAL CONTEXT (if provided) only as supplementary reference for accuracy — do NOT drift to other subtopics within the course material
 - Always include a `<pl-answer-panel>` with a clear explanation
 - Return ONLY valid JSON, no markdown fences
 
@@ -1093,11 +1094,17 @@ def generate_similar_question(
         log.warning("Could not detect question type, defaulting to %s", detected_type)
     log.info("Generating similar question: type=%s, topic=%r", detected_type, topic)
 
-    # 2. RAG context
+    # 2. RAG context — use the actual question content for retrieval, not just topic
     context_chunks: list[str] = []
-    if course.container_tag and topic:
+    if course.container_tag:
+        rag_hint = original_question.title or topic
+        if original_question.question_html:
+            # Strip HTML tags to get a text summary for better retrieval
+            plain = re.sub(r"<[^>]+>", " ", original_question.question_html)
+            plain = " ".join(plain.split())
+            rag_hint = f"{rag_hint}: {plain}"
         try:
-            queries = _expand_queries(f"practice question about {topic}", topic)
+            queries = _expand_queries(rag_hint, topic)
             context_chunks = _retrieve_context(queries, course.container_tag)
         except Exception:
             log.exception("RAG retrieval failed for similar question")
@@ -1129,13 +1136,14 @@ def generate_similar_question(
         )
 
     user_prompt = (
-        f"{context_section}"
         f"ORIGINAL QUESTION (generate something SIMILAR but DIFFERENT):\n"
         f"Title: {original_question.title}\n"
         f"Topic: {topic}\n"
         f"HTML:\n{original_question.question_html}\n\n"
-        f"Generate ONE new question. Same type ({detected_type}), same topic, "
-        f"different content/numbers/examples."
+        f"{context_section}"
+        f"Generate ONE new question that tests the SAME specific concept as the original. "
+        f"Same type ({detected_type}), same underlying concept, "
+        f"different content/numbers/examples. Do NOT drift to other subtopics."
     )
 
     # 5. Single Gemini call
