@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -26,18 +27,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="flex shrink-0 items-center justify-between bg-transparent px-6 py-4">
         <Link
           to="/"
-          className="text-2xl font-bold tracking-tight text-slate-900 no-underline"
+          className="text-3xl font-semibold tracking-tight text-slate-900 no-underline"
         >
           aerie
         </Link>
         {user && (
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={logout}
-            className="text-md text-slate-900 hover:bg-transparent hover:text-slate-600"
+            className="text-slate-900 hover:bg-transparent hover:text-slate-600"
           >
-            log out
+            <LogOut className="size-4" />
           </Button>
         )}
       </nav>

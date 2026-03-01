@@ -1,22 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Plus,
-  History,
-  ArrowRight,
-  Flame,
-  BookOpen,
-} from "lucide-react";
+import { Plus, History, ArrowRight, Flame, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardTitle,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardTitle, CardContent, CardHeader } from "@/components/ui/card";
 import { api } from "@/api";
 import type { Course, RecentAssessment } from "@/types";
 import CreateCourseForm from "@/components/elements/CreateCourseForm";
@@ -29,15 +18,20 @@ export default function DashboardPage() {
 
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [streakDays, setStreakDays] = useState<{ date: string; count: number }[]>([]);
+  const [streakDays, setStreakDays] = useState<
+    { date: string; count: number }[]
+  >([]);
 
   useEffect(() => {
     api.listCourses().then(setCourses).catch(console.error);
     api.recentAssessments().then(setRecentItems).catch(console.error);
-    api.getStreak().then((data) => {
-      setStreak(data.current_streak);
-      setStreakDays(data.days);
-    }).catch(console.error);
+    api
+      .getStreak()
+      .then((data) => {
+        setStreak(data.current_streak);
+        setStreakDays(data.days);
+      })
+      .catch(console.error);
   }, []);
 
   // Dynamically calculate how many recent items fit in the card.
@@ -93,21 +87,34 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1 overflow-hidden">
               <div className="flex flex-wrap gap-1.5">
-                {(streakDays.length > 0 ? streakDays : Array.from({ length: 28 }, () => ({ date: "", count: 0 }))).map((day, i) => {
-                  const maxCount = Math.max(1, ...streakDays.map((d) => d.count));
-                  const intensity = day.count > 0 ? Math.max(0.2, day.count / maxCount) : 0;
+                {(streakDays.length > 0
+                  ? streakDays
+                  : Array.from({ length: 28 }, () => ({ date: "", count: 0 }))
+                ).map((day, i) => {
+                  const maxCount = Math.max(
+                    1,
+                    ...streakDays.map((d) => d.count),
+                  );
+                  const intensity =
+                    day.count > 0 ? Math.max(0.2, day.count / maxCount) : 0;
                   return (
                     <div
                       key={i}
                       className="size-3.5 rounded-[2px] border"
-                      title={day.date ? `${day.date}: ${day.count} submission${day.count !== 1 ? "s" : ""}` : ""}
+                      title={
+                        day.date
+                          ? `${day.date}: ${day.count} submission${day.count !== 1 ? "s" : ""}`
+                          : ""
+                      }
                       style={{
-                        backgroundColor: day.count > 0
-                          ? `rgba(249, 115, 22, ${intensity})`
-                          : "rgba(51, 65, 85, 1)",
-                        borderColor: day.count > 0
-                          ? "rgba(249, 115, 22, 0.4)"
-                          : "rgba(71, 85, 105, 1)",
+                        backgroundColor:
+                          day.count > 0
+                            ? `rgba(249, 115, 22, ${intensity})`
+                            : "rgba(51, 65, 85, 1)",
+                        borderColor:
+                          day.count > 0
+                            ? "rgba(249, 115, 22, 0.4)"
+                            : "rgba(71, 85, 105, 1)",
                       }}
                     />
                   );
@@ -167,20 +174,25 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* 3. RECENT (right column, where Course Library was) */}
+      {/* 3. RECENT (right column) */}
       <Card
         ref={recentCardRef}
-        className="lg:col-span-2 flex flex-col h-full bg-slate-100 border-slate-200 shadow-inner overflow-hidden min-h-0 [&>div]:flex-1 [&>div]:min-h-0"
-        style={{ height: "100%", minHeight: 0 }}
+        className="lg:col-span-2 flex flex-col h-full border-slate-500/50 overflow-hidden min-h-0 [&>div]:flex-1 [&>div]:min-h-0 pt-0"
+        style={{ height: "100%", minHeight: 0, background: "linear-gradient(to bottom, #2e3a4e 0%, #3a4d68 14%, #4b6282 35%, #5e7a9e 65%, #6b8bb0 100%)" }}
       >
-        <CardHeader data-recent-header className="shrink-0 border-b border-slate-200 pt-0 pb-6">
-          <div className="flex justify-between items-center px-1">
-            <CardTitle className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+        <div
+          data-recent-header
+          className="px-6 py-5 shrink-0 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-lg bg-white/10">
+              <History className="size-4 text-white/70" />
+            </div>
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white m-0">
               Recent
-            </CardTitle>
-            <History className="size-4 text-slate-500" />
+            </h2>
           </div>
-        </CardHeader>
+        </div>
         <CardContent
           data-recent-content
           className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-4 pt-0 min-h-0"
@@ -201,7 +213,7 @@ export default function DashboardPage() {
             ))
           ) : (
             <div className="h-full flex flex-col items-center justify-center opacity-30">
-              <BookOpen className="size-8" />
+              <BookOpen className="size-8 text-white" />
             </div>
           )}
         </CardContent>
@@ -231,28 +243,31 @@ function RecentItem({
   score: number;
   courseName?: string;
 }) {
-  // Logic for color status based on score
   const getStatusColor = (s: number) => {
     if (s >= 90) return "bg-emerald-500";
     if (s >= 70) return "bg-amber-500";
     return "bg-rose-500";
   };
 
-  return (
-    <div className="group relative bg-white border border-slate-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:border-primary/20 active:scale-[0.99] cursor-pointer overflow-hidden h-[74px]">
-      {/* Visual Status Indicator (Vertical line on the left) */}
+  const getScoreTextColor = (s: number) => {
+    if (s >= 90) return "text-emerald-400";
+    if (s >= 70) return "text-amber-400";
+    return "text-rose-400";
+  };
 
+  return (
+    <div className="group relative bg-white/15 border border-white/10 rounded-xl p-4 transition-all duration-200 hover:bg-white/20 active:scale-[0.99] cursor-pointer overflow-hidden h-[74px]">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col min-w-0 gap-1">
           {/* Course Tag */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/50 truncate">
               {courseName || "General"}
             </span>
           </div>
 
           {/* Assessment Title */}
-          <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
+          <h3 className="text-sm font-bold text-white truncate group-hover:text-slate-100 transition-colors">
             {topic}
           </h3>
         </div>
@@ -260,15 +275,20 @@ function RecentItem({
         {/* Score Badge */}
         <div className="flex flex-col items-end shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-black font-mono text-slate-900">
+            <span
+              className={cn(
+                "text-lg font-black font-mono",
+                getScoreTextColor(score),
+              )}
+            >
               {score}
-              <span className="text-[10px] text-slate-400 ml-0.5">%</span>
+              <span className="text-[10px] text-white/30 ml-0.5">%</span>
             </span>
-            <ArrowRight className="size-4 text-slate-300 transition-all group-hover:text-primary group-hover:translate-x-1" />
+            <ArrowRight className="size-4 text-white/30 transition-all group-hover:text-white group-hover:translate-x-1" />
           </div>
 
           {/* Mini progress bar under the number */}
-          <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+          <div className="w-12 h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
             <div
               className={cn("h-full rounded-full", getStatusColor(score))}
               style={{ width: `${score}%` }}
