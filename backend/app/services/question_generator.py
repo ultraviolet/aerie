@@ -360,7 +360,6 @@ Return ONLY a JSON array of type names, e.g. ["pl-multiple-choice", "pl-matching
         model="gemini-3-flash-preview",
         contents=selection_prompt,
         config=genai.types.GenerateContentConfig(
-            temperature=0.2,
             max_output_tokens=2048,
             response_mime_type="application/json",
         ),
@@ -429,7 +428,6 @@ def _expand_queries(prompt: str, topic: str = "") -> list[str]:
                 "algorithms, comparisons, etc.). "
                 "Return ONLY a JSON array of strings, e.g. [\"query1\", \"query2\", ...]"
             ),
-            temperature=0.3,
             max_output_tokens=1024,
             response_mime_type="application/json",
         ),
@@ -495,7 +493,6 @@ def _understand_prompt(prompt: str, topics: list[str], course_topics: list[str])
                 f"The course has these existing topics: [{topic_list}]\n"
                 "Return ONLY valid JSON with keys: material_query, focus_weaknesses, weakness_scope, refined_prompt."
             ),
-            temperature=0.1,
             max_output_tokens=1024,
             response_mime_type="application/json",
         ),
@@ -733,7 +730,6 @@ def generate_questions(
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.7,
             max_output_tokens=max_tokens,
             response_mime_type="application/json",
         ),
@@ -950,7 +946,6 @@ def generate_questions_stream(
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.7,
             max_output_tokens=max_tokens,
             response_mime_type="application/json",
         ),
@@ -1153,7 +1148,6 @@ def generate_similar_question(
         contents=user_prompt,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.8,
             max_output_tokens=8192,
             response_mime_type="application/json",
         ),
