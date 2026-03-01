@@ -1,10 +1,11 @@
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import Layout from "@/components/Layout";
 import AssessmentPage from "@/pages/AssessmentPage";
 import AuthPage from "@/pages/AuthPage";
 import CoursePage from "@/pages/CoursePage";
 import DashboardPage from "@/pages/DashboardPage";
+import LandingPage from "@/pages/LandingPage";
 import MemoryGraphEmbed from "@/pages/MemoryGraphEmbed";
 import QuestionPage from "@/pages/QuestionPage";
 import "katex/dist/katex.min.css";
@@ -28,7 +29,13 @@ function AppRoutes() {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
   return (
