@@ -19,7 +19,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Image, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
@@ -407,22 +407,37 @@ export default function QuestionPage() {
                     placeholder={
                       chatLoading
                         ? "Thinking..."
-                        : "Ask a question about this problem..."
+                        : "Ask about this problem, or request a diagram..."
                     }
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     disabled={chatLoading}
-                    className="pr-10 bg-slate-50 border-slate-200 focus-visible:ring-slate-400 rounded-xl h-11"
+                    className="pr-20 bg-slate-50 border-slate-200 focus-visible:ring-slate-400 rounded-xl h-11"
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute right-1 hover:bg-transparent"
-                    type="submit"
-                    disabled={!chatInput.trim() || chatLoading}
-                  >
-                    <Send className="size-4 text-slate-900" />
-                  </Button>
+                  <div className="absolute right-1 flex items-center gap-0.5">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      type="button"
+                      className="hover:bg-slate-100"
+                      disabled={chatLoading}
+                      onClick={() => {
+                        setChatInput("Draw a diagram to help me understand this");
+                      }}
+                      title="Request a diagram"
+                    >
+                      <Image className="size-4 text-slate-400" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="hover:bg-transparent"
+                      type="submit"
+                      disabled={!chatInput.trim() || chatLoading}
+                    >
+                      <Send className="size-4 text-slate-900" />
+                    </Button>
+                  </div>
                 </form>
               </div>
             )}
