@@ -23,7 +23,7 @@ export default function LandingPage() {
       </nav>
 
       <div className="flex flex-1 min-h-0 flex-col px-6">
-        <div className="shrink-0 pl-4 md:pl-8 pt-6 md:pt-12 lg:pt-20">
+        <div className="shrink-0 pl-4 md:pl-8 pt-6 md:pt-12 lg:pt-20 relative z-10">
           <h1 className="text-center text-2xl font-bold tracking-tight md:text-left md:text-4xl lg:text-6xl">
             The AI-powered study platform <br /> that learns with you.
           </h1>
