@@ -21,9 +21,9 @@ export default function PLDropdown({ answersName, answers, selected, onChange, d
         value={selected}
         onChange={(e) => onChange(answersName, e.target.value)}
         disabled={disabled}
-        className="w-full rounded-lg border bg-background px-4 py-3 text-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full rounded-lg border bg-background px-4 py-3 text-sm shadow-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">-- Select an answer --</option>
+        <option value="">-- select an answer --</option>
         {answers.map((a, i) => (
           <option key={i} value={a.text}>
             {a.text}

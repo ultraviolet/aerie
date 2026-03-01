@@ -358,8 +358,10 @@ def grade_submission(
                     total_score += score
                     data["partial_scores"][key] = {"score": score}
                 data["score"] = total_score / total if total > 0 else 0
+                score_str = f"{int(total_score)}" if total_score == int(total_score) else f"{total_score:.1f}"
+                total_str = f"{int(total)}" if total == int(total) else f"{total}"
                 data["feedback"] = {
-                    "message": f"Score: {total_score:.1f}/{total}",
+                    "message": f"Score: {score_str}/{total_str}",
                     "total_score": total_score,
                     "total": total,
                 }

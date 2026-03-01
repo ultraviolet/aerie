@@ -63,16 +63,6 @@ def create_course(db: Session, title: str, user_id: int) -> Course:
     course.container_tag = f"course_{course.id}"
     db.flush()
 
-    # Create default empty assessment
-    a = Assessment(
-        course_id=course.id,
-        tid="default",
-        title="All Questions",
-        type="Homework",
-    )
-    a.question_ids = []
-    db.add(a)
-
     db.commit()
     db.refresh(course)
     return course
@@ -138,17 +128,6 @@ def load_course(db: Session, course_path: str, user_id: int) -> Course:
                     if not adir.is_dir():
                         continue
                     _load_assessment(db, course.id, adir, question_map)
-
-    # If no assessments found, create a default one containing all questions
-    if not db.query(Assessment).filter(Assessment.course_id == course.id).first():
-        a = Assessment(
-            course_id=course.id,
-            tid="default",
-            title="All Questions",
-            type="Homework",
-        )
-        a.question_ids = [q.id for q in question_map.values()]
-        db.add(a)
 
     db.commit()
     db.refresh(course)

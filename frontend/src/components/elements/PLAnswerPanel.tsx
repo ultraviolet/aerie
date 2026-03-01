@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   children?: ReactNode;
@@ -9,11 +8,18 @@ interface Props {
 export default function PLAnswerPanel({ children, show }: Props) {
   if (!show) return null;
   return (
-    <Card className="border-green-200 bg-green-50 mt-4">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-green-800">Answer & Explanation</CardTitle>
-      </CardHeader>
-      <CardContent className="text-green-900">{children}</CardContent>
-    </Card>
+    <div className="mt-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+        <div className="size-8 rounded-full flex items-center justify-center bg-green-100 text-green-600 text-sm shrink-0">
+          &#x2713;
+        </div>
+        <p className="text-sm font-black uppercase tracking-wide text-green-800">
+          Answer & Explanation
+        </p>
+      </div>
+      <div className="px-5 pb-5 text-sm text-green-900/90 leading-relaxed break-words overflow-hidden [&_p]:mb-2 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:mb-1 [&_pre]:overflow-x-auto">
+        {children}
+      </div>
+    </div>
   );
 }

@@ -11,7 +11,7 @@ interface Props {
 
 export default function PLStringInput({ answersName, label, value, onChange, disabled }: Props) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-nowrap min-w-0">
       {label && <MathLabel text={label} />}
       <Input
         id={answersName}
@@ -19,7 +19,8 @@ export default function PLStringInput({ answersName, label, value, onChange, dis
         value={value}
         onChange={(e) => onChange(answersName, e.target.value)}
         disabled={disabled}
-        placeholder="Enter your answer"
+        placeholder="enter your answer"
+        className="max-w-64"
       />
     </div>
   );

@@ -380,11 +380,11 @@ function MaterialsTab({
 
       <div data-scroll-container className="flex-1 overflow-y-auto pb-12 pr-2">
         {filteredMaterials.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-500">
+          <p className="text-slate-500 text-sm italic mt-8 text-center">
             {searchQuery
               ? "no results found for your search."
-              : "no materials found for this course."}
-          </div>
+              : "no materials yet. click \"add new material\" to get started."}
+          </p>
         ) : (
           <div
             className={
@@ -792,6 +792,8 @@ function GenerateMaterialView({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
+  const [generatedAssessmentId, setGeneratedAssessmentId] = useState<number | null>(null);
+  const [generatedAssessmentTitle, setGeneratedAssessmentTitle] = useState("");
   const [contextUsed, setContextUsed] = useState<string[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [courseTopics, setCourseTopics] = useState<string[]>([]);
@@ -813,6 +815,8 @@ function GenerateMaterialView({
     setGenerating(true);
     setError("");
     setGeneratedQuestions([]);
+    setGeneratedAssessmentId(null);
+    setGeneratedAssessmentTitle("");
     setContextUsed([]);
     setProgressSteps([]);
     try {
@@ -831,6 +835,8 @@ function GenerateMaterialView({
           ]);
         } else if (event === "result") {
           setGeneratedQuestions((data as { questions: Question[] }).questions);
+          setGeneratedAssessmentId((data as { assessment_id?: number }).assessment_id ?? null);
+          setGeneratedAssessmentTitle((data as { assessment_title?: string }).assessment_title ?? "");
           setContextUsed((data as { context_used: string[] }).context_used);
           setHasGenerated(true);
           onGenerated();
@@ -992,37 +998,30 @@ function GenerateMaterialView({
       </Card>
 
       {generatedQuestions.length > 0 && (
-        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-3 animate-in slide-in-from-bottom-4 duration-500">
           <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest pb-2 border-b">
             Material Ready
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {generatedQuestions.map((q) => (
-              <Link
-                key={q.id}
-                to={`/questions/${q.id}`}
-                className="block no-underline"
-              >
-                <Card className="transition-all hover:shadow-md hover:border-primary/40 cursor-pointer h-full pb-3">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-base text-slate-900 leading-tight">
-                      {q.title}
-                    </CardTitle>
-                    <CardDescription className="text-xs mt-2">
-                      {q.topic && (
-                        <span className="font-mono text-[10px] uppercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 mr-2">
-                          {q.topic}
-                        </span>
-                      )}
-                      <span className="text-primary font-medium">
-                        click to open &rarr;
-                      </span>
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          <Link
+            to={generatedAssessmentId ? `/assessments/${generatedAssessmentId}` : `/questions/${generatedQuestions[0].id}`}
+            className="block no-underline"
+          >
+            <Card className="transition-all hover:shadow-md hover:border-primary/40 cursor-pointer">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base text-slate-900">
+                    {generatedAssessmentTitle || "Generated Quiz"}
+                  </CardTitle>
+                  <span className="text-primary font-bold text-sm shrink-0 ml-4">
+                    start &rarr;
+                  </span>
+                </div>
+                <CardDescription className="text-xs mt-1 font-mono">
+                  {generatedQuestions.length} question{generatedQuestions.length !== 1 ? "s" : ""}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
       )}
 
@@ -1041,23 +1040,20 @@ function GenerateMaterialView({
         )}
 
       {contextUsed.length > 0 && (
-        <div className="space-y-3 mt-8">
-          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-            Source Material Used
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {contextUsed.map((chunk, i) => (
-              <Card
-                key={i}
-                className="bg-slate-50 border-slate-100 shadow-inner"
-              >
-                <CardContent className="py-3 px-4">
-                  <p className="text-[11px] font-mono text-slate-500 whitespace-pre-wrap line-clamp-4 leading-relaxed">
-                    {chunk}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+        <div className="mt-6">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+            <div className="px-4 py-2 border-b border-slate-200 bg-slate-100/60">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                // source material used
+              </span>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {contextUsed.map((chunk, i) => (
+                <p key={i} className="text-[11px] font-mono text-slate-500 whitespace-pre-wrap line-clamp-3 leading-relaxed">
+                  <span className="text-slate-400 select-none">{`/* ${i + 1} */  `}</span>{chunk}
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       )}

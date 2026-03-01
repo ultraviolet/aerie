@@ -42,9 +42,9 @@ export default function PLMatching({
                   value={selected[String(i)] ?? ""}
                   onChange={(e) => handleSelect(i, e.target.value)}
                   disabled={disabled}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">-- Select --</option>
+                  <option value="">-- select --</option>
                   {options.map((opt) => (
                     <option key={opt.name} value={opt.name}>
                       {opt.text}

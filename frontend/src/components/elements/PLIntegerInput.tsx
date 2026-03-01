@@ -11,7 +11,7 @@ interface Props {
 
 export default function PLIntegerInput({ answersName, label, value, onChange, disabled }: Props) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-nowrap min-w-0">
       {label && <MathLabel text={label} />}
       <Input
         id={answersName}
@@ -19,7 +19,7 @@ export default function PLIntegerInput({ answersName, label, value, onChange, di
         value={value}
         onChange={(e) => onChange(answersName, e.target.value)}
         disabled={disabled}
-        placeholder="Enter an integer"
+        placeholder="enter an integer"
         step="1"
         pattern="-?[0-9]*"
         className="max-w-48"

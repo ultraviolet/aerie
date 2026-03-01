@@ -29,7 +29,7 @@ export default function QuestionContent({
     return <div className="text-muted-foreground">No question content</div>;
 
   return (
-    <div className="prose prose-slate max-w-none dark:prose-invert">
+    <div className="prose prose-slate max-w-none dark:prose-invert break-words [&_pre]:overflow-auto [&_pre]:max-h-[400px]">
       {renderContentNode(parsed, showAnswer, showSubmission)}
     </div>
   );
@@ -64,7 +64,29 @@ function renderContentNode(
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
 
-  if (isInputTag(tag)) return null;
+  if (isInputTag(tag)) {
+    // In HTML mode, self-closing custom elements (e.g. <pl-true-false />)
+    // are parsed as open tags, swallowing subsequent siblings like
+    // <pl-answer-panel>. Rescue any panel elements trapped inside.
+    const panels: ReactNode[] = [];
+    let panelIdx = 0;
+    function rescuePanels(n: Node) {
+      if (n.nodeType === Node.ELEMENT_NODE) {
+        const t = (n as Element).tagName.toLowerCase();
+        if (t === "pl-answer-panel" || t === "pl-submission-panel") {
+          panels.push(
+            <span key={panelIdx++}>
+              {renderContentNode(n, showAnswer, showSubmission)}
+            </span>,
+          );
+          return;
+        }
+      }
+      n.childNodes.forEach(rescuePanels);
+    }
+    rescuePanels(el);
+    return panels.length > 0 ? <>{panels}</> : null;
+  }
 
   const children = Array.from(el.childNodes).map((child, i) => (
     <span key={i}>{renderContentNode(child, showAnswer, showSubmission)}</span>

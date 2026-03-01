@@ -57,11 +57,25 @@ export default function QuestionPage() {
     setMessages([]);
     setError("");
     try {
-      const q = await api.getQuestion(Number(id));
+      // Fetch question + assessment order in parallel
+      const qPromise = api.getQuestion(Number(id));
+      const attemptPromise = api.lastAttempt(Number(id));
+      const assessmentPromise = assessmentId
+        ? api.getAssessment(Number(assessmentId))
+        : null;
+
+      const [q, attempt, assessmentDetail] = await Promise.all([
+        qPromise,
+        attemptPromise,
+        assessmentPromise,
+      ]);
+
       setQuestion(q);
 
-      // Check for an existing attempt first
-      const attempt = await api.lastAttempt(Number(id));
+      if (assessmentDetail) {
+        setAssessmentQuestionIds(assessmentDetail.questions.map((aq) => aq.id));
+      }
+
       if (attempt.variant && attempt.submission) {
         setVariant(attempt.variant);
         setSubmission(attempt.submission);
@@ -79,7 +93,7 @@ export default function QuestionPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, assessmentId]);
 
   const generateNewVariant = useCallback(async () => {
     if (!id) return;
@@ -101,17 +115,6 @@ export default function QuestionPage() {
   useEffect(() => {
     loadQuestion();
   }, [loadQuestion]);
-
-  // Fetch assessment question order for "Next Question" navigation
-  useEffect(() => {
-    if (!assessmentId) return;
-    api
-      .getAssessment(Number(assessmentId))
-      .then((detail) => {
-        setAssessmentQuestionIds(detail.questions.map((q) => q.id));
-      })
-      .catch(() => {});
-  }, [assessmentId]);
 
   const handleAnswerChange = (name: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [name]: value }));
@@ -245,7 +248,7 @@ export default function QuestionPage() {
       <div className="flex items-center gap-3 border-b bg-white/50 backdrop-blur px-4 py-2 shrink-0">
         <Link to={backLink}>
           <Button variant="ghost" size="sm">
-            &larr; Back
+            &larr; back
           </Button>
         </Link>
         <Separator orientation="vertical" className="h-5" />
@@ -271,9 +274,9 @@ export default function QuestionPage() {
         <ResizablePanel
           defaultSize={50}
           minSize={30}
-          className="flex flex-col h-full bg-slate-50/30"
+          className="flex flex-col h-full bg-slate-50/30 overflow-hidden"
         >
-          <div className="flex h-full flex-col min-h-0">
+          <div className="flex h-full flex-col min-h-0 min-w-0">
             {/* 1. Header (Fixed) */}
             <div className="border-b bg-slate-100/50 px-4 py-2 shrink-0">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -283,12 +286,41 @@ export default function QuestionPage() {
 
             {/* 2. Content Area (Scrollable) */}
             <ScrollArea className="flex-1 min-h-0">
-              <div className="p-6">
+              <div className="p-6 min-w-0 overflow-hidden">
                 <QuestionContent
                   html={variant.rendered_html}
                   showAnswer={submission != null}
                   showSubmission={submission != null}
                 />
+
+                {/* Fallback explanation when HTML has no <pl-answer-panel> */}
+                {submission != null &&
+                  !variant.rendered_html
+                    .toLowerCase()
+                    .includes("<pl-answer-panel>") && (
+                    <div className="mt-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 overflow-hidden">
+                      <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+                        <div className="size-8 rounded-full flex items-center justify-center bg-green-100 text-green-600 text-sm shrink-0">
+                          &#x2713;
+                        </div>
+                        <p className="text-sm font-black uppercase tracking-wide text-green-800">
+                          Answer & Explanation
+                        </p>
+                      </div>
+                      <div className="px-5 pb-5 text-sm text-green-900/90 leading-relaxed space-y-1">
+                        {Object.entries(variant.correct_answers).map(
+                          ([key, val]) => (
+                            <p key={key}>
+                              <strong>{key}:</strong>{" "}
+                              {Array.isArray(val)
+                                ? val.join(", ")
+                                : String(val)}
+                            </p>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                 {/* Chat History renders inside the scrollable area */}
                 {submission && messages.length > 0 && (
@@ -303,30 +335,32 @@ export default function QuestionPage() {
                       </span>
                     </div>
                     {messages.map((m, i) => (
-                      <div
-                        key={i}
-                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
-                            m.role === "user"
-                              ? "bg-slate-900 text-white"
-                              : "bg-white border border-slate-200 text-slate-800"
-                          }`}
-                        >
-                          {/* Move the prose classes here to a wrapper. 
-          This ensures the Markdown content is styled without 
-          triggering TypeScript errors on the ReactMarkdown component.
-      */}
-                          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:bg-slate-800">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkMath]}
-                              rehypePlugins={[rehypeKatex]}
-                            >
-                              {m.content}
-                            </ReactMarkdown>
+                      <div key={i}>
+                        {m.role === "user" ? (
+                          <div className="flex justify-end">
+                            <div className="max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm bg-slate-900 text-white">
+                              <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkMath]}
+                                  rehypePlugins={[rehypeKatex]}
+                                >
+                                  {m.content}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="w-full rounded-2xl px-4 py-2 text-sm shadow-sm bg-white border border-slate-200 text-slate-800">
+                            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-pre:overflow-x-auto">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                              >
+                                {m.content}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {chatLoading && (
@@ -347,7 +381,7 @@ export default function QuestionPage() {
               <div className="p-4 bg-white border-t border-slate-100 shrink-0 mt-auto">
                 <form
                   onSubmit={handleSendMessage}
-                  className="relative flex items-center max-w-3xl mx-auto w-full"
+                  className="relative flex items-center w-full"
                 >
                   <Input
                     placeholder={
@@ -388,7 +422,7 @@ export default function QuestionPage() {
               Your Answer
             </span>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-6 space-y-6">
               <QuestionInputs
                 html={variant.rendered_html}
@@ -398,87 +432,86 @@ export default function QuestionPage() {
                 params={variant.params}
               />
 
-              <Separator />
-
-              <div className="flex flex-col gap-2">
-                {submission == null ? (
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                      className="flex-1 font-bold"
-                    >
-                      {submitting ? "Grading..." : "Submit"}
-                    </Button>
-                    <Button variant="outline" onClick={generateNewVariant}>
-                      Reset
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {assessmentId && nextQuestionId ? (
-                      <Button
-                        onClick={() =>
-                          navigate(
-                            `/questions/${nextQuestionId}?assessment=${assessmentId}`,
-                          )
-                        }
-                        className="w-full font-bold"
-                      >
-                        next question &rarr;
-                      </Button>
-                    ) : assessmentId && isLastQuestion ? (
-                      <Button
-                        onClick={() => navigate(`/assessments/${assessmentId}`)}
-                        className="w-full font-bold"
-                      >
-                        finish assessment
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="ghost"
-                      onClick={handleGenerateSimilar}
-                      disabled={generatingSimilar}
-                      className="w-full text-muted-foreground"
-                    >
-                      {generatingSimilar
-                        ? "generating..."
-                        : "generate similar question"}
-                    </Button>
-                  </>
-                )}
-              </div>
-
               {submission != null && (
-                <div className="space-y-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="space-y-4">
+                  {/* Score banner */}
                   <div
-                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-black ${
+                    className={`rounded-xl p-5 ${
                       scoreVariant === "correct"
-                        ? "text-green-600"
+                        ? "bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200"
                         : scoreVariant === "partial"
-                          ? "text-amber-600"
-                          : "text-red-600"
+                          ? "bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200"
+                          : "bg-gradient-to-br from-red-50 to-rose-50 border border-red-200"
                     }`}
                   >
-                    {scoreVariant === "correct" && "Correct! "}
-                    {scoreVariant === "partial" && "Partial Credit "}
-                    {scoreVariant === "incorrect" && "Incorrect "}
-                    {scorePercent}%
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`size-10 rounded-full flex items-center justify-center text-lg ${
+                            scoreVariant === "correct"
+                              ? "bg-green-100 text-green-600"
+                              : scoreVariant === "partial"
+                                ? "bg-amber-100 text-amber-600"
+                                : "bg-red-100 text-red-600"
+                          }`}
+                        >
+                          {scoreVariant === "correct"
+                            ? "\u2713"
+                            : scoreVariant === "partial"
+                              ? "\u00BD"
+                              : "\u2717"}
+                        </div>
+                        <div>
+                          <p
+                            className={`text-sm font-black uppercase tracking-wide ${
+                              scoreVariant === "correct"
+                                ? "text-green-800"
+                                : scoreVariant === "partial"
+                                  ? "text-amber-800"
+                                  : "text-red-800"
+                            }`}
+                          >
+                            {scoreVariant === "correct" && "Correct"}
+                            {scoreVariant === "partial" && "Partial Credit"}
+                            {scoreVariant === "incorrect" && "Incorrect"}
+                          </p>
+                          {submission.feedback &&
+                            (submission.feedback as any).message && (
+                              <p
+                                className={`text-xs mt-0.5 leading-relaxed ${
+                                  scoreVariant === "correct"
+                                    ? "text-green-700/80"
+                                    : scoreVariant === "partial"
+                                      ? "text-amber-700/80"
+                                      : "text-red-700/80"
+                                }`}
+                              >
+                                {(submission.feedback as any).message}
+                              </p>
+                            )}
+                        </div>
+                      </div>
+                      <div
+                        className={`text-3xl font-black tabular-nums ${
+                          scoreVariant === "correct"
+                            ? "text-green-600"
+                            : scoreVariant === "partial"
+                              ? "text-amber-600"
+                              : "text-red-600"
+                        }`}
+                      >
+                        {scorePercent}%
+                      </div>
+                    </div>
                   </div>
-                  {submission.feedback &&
-                    (submission.feedback as any).message && (
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                        {(submission.feedback as any).message}
-                      </p>
-                    )}
 
                   {/* Code test results */}
                   {(submission.feedback as any)?.test_results?.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Visible Test Results
+                    <div className="space-y-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Test Results
                       </p>
-                      <div className="rounded-lg border divide-y divide-slate-100 text-sm">
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
                         {(
                           (submission.feedback as any).test_results as Array<{
                             index: number;
@@ -488,22 +521,30 @@ export default function QuestionPage() {
                             error?: string;
                             description?: string;
                           }>
-                        ).map((r) => (
+                        ).map((r, i, arr) => (
                           <div
                             key={r.index}
-                            className="px-3 py-2 flex items-start gap-2"
+                            className={`px-3.5 py-2.5 flex items-start gap-3 ${
+                              i !== arr.length - 1
+                                ? "border-b border-slate-100"
+                                : ""
+                            }`}
                           >
                             <span
-                              className={`font-mono text-xs font-bold ${r.passed ? "text-green-500" : "text-red-500"}`}
+                              className={`text-[10px] font-black uppercase tracking-wider mt-0.5 px-1.5 py-0.5 rounded ${
+                                r.passed
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
                             >
                               {r.passed ? "PASS" : "FAIL"}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <span className="font-medium">
+                              <span className="text-sm font-medium text-slate-800">
                                 {r.description || `Test ${r.index + 1}`}
                               </span>
                               {!r.passed && (
-                                <div className="font-mono text-xs mt-1 text-red-600">
+                                <div className="font-mono text-xs mt-1.5 text-red-600/90 bg-red-50 rounded px-2 py-1">
                                   {r.error ||
                                     `Expected ${r.expected}, got ${r.actual}`}
                                 </div>
@@ -513,7 +554,7 @@ export default function QuestionPage() {
                         ))}
                       </div>
                       {(submission.feedback as any).hidden_summary && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground italic">
                           {(submission.feedback as any).hidden_summary}
                         </p>
                       )}
@@ -523,6 +564,58 @@ export default function QuestionPage() {
               )}
             </div>
           </ScrollArea>
+
+          {/* Fixed action buttons — always visible at bottom */}
+          <div className="px-4 pt-4 pb-6 bg-white border-t border-slate-100 shrink-0">
+            <div className="flex flex-col gap-2">
+              {submission == null ? (
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="flex-1 font-bold"
+                  >
+                    {submitting ? "grading..." : "submit"}
+                  </Button>
+                  <Button variant="outline" onClick={generateNewVariant}>
+                    clear
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {assessmentId && nextQuestionId ? (
+                    <Button
+                      onClick={() =>
+                        navigate(
+                          `/questions/${nextQuestionId}?assessment=${assessmentId}`,
+                        )
+                      }
+                      className="w-full font-bold"
+                    >
+                      next question &rarr;
+                    </Button>
+                  ) : assessmentId && isLastQuestion ? (
+                    <Button
+                      onClick={() => navigate(`/assessments/${assessmentId}`)}
+                      className="w-full font-bold"
+                    >
+                      finish assessment
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    onClick={handleGenerateSimilar}
+                    disabled={generatingSimilar}
+                    className="w-full text-muted-foreground"
+                  >
+                    {generatingSimilar
+                      ? "generating..."
+                      : "generate similar question"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

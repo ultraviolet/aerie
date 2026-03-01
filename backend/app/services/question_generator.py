@@ -149,11 +149,24 @@ CRITICAL: Each value in the list MUST be the EXACT text of the corresponding `<p
 Best for: verifying understanding of facts, definitions, properties, common misconceptions.
 HTML:
 ```
+<pl-question-panel>
+<markdown>
+**True or False:** [A clear, specific statement that is definitively true or false.]
+</markdown>
+</pl-question-panel>
+
 <pl-true-false answers-name="X" correct-answer="true" />
+
+<pl-answer-panel>
+<markdown>
+**True.** [Detailed explanation of WHY the statement is true or false, referencing the relevant concept, definition, or reasoning. This should teach the student, not just state the answer.]
+</markdown>
+</pl-answer-panel>
 ```
 correct_answers: `{"X": "True"}`
 Set correct-answer to "true" or "false". The correct_answers value is "True" or "False" (capitalized).
-The question text should make a clear statement that is definitively true or false.""",
+The question text should make a clear statement that is definitively true or false.
+CRITICAL: The `<pl-answer-panel>` MUST contain a thorough explanation of why the answer is true or false — not just the answer itself.""",
 
     "pl-code-editor": """\
 ### pl-code-editor — Write Python code to solve a programming problem
@@ -1057,6 +1070,8 @@ def generate_questions_stream(
     yield ("result", {
         "questions": [q.model_dump() for q in questions_out],
         "context_used": unique_context[:5],
+        "assessment_id": assessment.id,
+        "assessment_title": assessment.title,
     })
 
 
