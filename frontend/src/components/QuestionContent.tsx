@@ -29,7 +29,7 @@ export default function QuestionContent({
     return <div className="text-muted-foreground">No question content</div>;
 
   return (
-    <div className="prose prose-slate max-w-none dark:prose-invert break-words [&_pre]:overflow-auto [&_pre]:max-h-[400px]">
+    <div className="prose prose-slate max-w-none dark:prose-invert break-words overflow-hidden [&_pre]:overflow-auto [&_pre]:max-h-[400px] [&_.katex-display]:overflow-x-auto [&_table]:overflow-x-auto [&_code]:before:content-none [&_code]:after:content-none [&_code]:bg-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-slate-800 [&_code]:font-mono [&_code]:text-[0.9em]">
       {renderContentNode(parsed, showAnswer, showSubmission)}
     </div>
   );

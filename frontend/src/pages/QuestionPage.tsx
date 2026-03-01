@@ -48,13 +48,20 @@ export default function QuestionPage() {
     { role: "user" | "ai"; content: string }[]
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const chatAbortRef = useRef<AbortController | null>(null);
 
   const loadQuestion = useCallback(async () => {
     if (!id) return;
+    // Abort any in-flight chat request
+    if (chatAbortRef.current) {
+      chatAbortRef.current.abort();
+      chatAbortRef.current = null;
+    }
     setLoading(true);
     setSubmission(null);
     setAnswers({});
     setMessages([]);
+    setChatLoading(false);
     setError("");
     try {
       // Fetch question + assessment order in parallel
@@ -149,6 +156,11 @@ export default function QuestionPage() {
     setChatInput("");
     setChatLoading(true);
 
+    // Abort any previous in-flight chat request
+    if (chatAbortRef.current) chatAbortRef.current.abort();
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
+
     try {
       const res = await api.chatAboutQuestion(variant.id, {
         message: userMsg,
@@ -161,9 +173,10 @@ export default function QuestionPage() {
         score: submission.score,
         feedback: (submission.feedback as Record<string, unknown>) ?? {},
         course_id: question?.course_id ?? null,
-      });
+      }, controller.signal);
       setMessages((prev) => [...prev, { role: "ai", content: res.reply }]);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages((prev) => [
         ...prev,
         {
@@ -226,7 +239,7 @@ export default function QuestionPage() {
   if (loading)
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground font-medium">
-        Generating variant...
+        loading...
       </div>
     );
   if (error)
@@ -276,7 +289,7 @@ export default function QuestionPage() {
           minSize={30}
           className="flex flex-col h-full bg-slate-50/30 overflow-hidden"
         >
-          <div className="flex h-full flex-col min-h-0 min-w-0">
+          <div className="flex h-full flex-col min-h-0 min-w-0 overflow-hidden">
             {/* 1. Header (Fixed) */}
             <div className="border-b bg-slate-100/50 px-4 py-2 shrink-0">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -285,8 +298,8 @@ export default function QuestionPage() {
             </div>
 
             {/* 2. Content Area (Scrollable) */}
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="p-6 min-w-0 overflow-hidden">
+            <ScrollArea className="flex-1 min-h-0 min-w-0">
+              <div className="p-6 min-w-0 overflow-hidden break-words">
                 <QuestionContent
                   html={variant.rendered_html}
                   showAnswer={submission != null}
@@ -298,7 +311,7 @@ export default function QuestionPage() {
                   !variant.rendered_html
                     .toLowerCase()
                     .includes("<pl-answer-panel>") && (
-                    <div className="mt-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 overflow-hidden">
+                    <div className="mt-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 overflow-hidden min-w-0">
                       <div className="flex items-center gap-3 px-5 pt-4 pb-2">
                         <div className="size-8 rounded-full flex items-center justify-center bg-green-100 text-green-600 text-sm shrink-0">
                           &#x2713;
@@ -324,7 +337,7 @@ export default function QuestionPage() {
 
                 {/* Chat History renders inside the scrollable area */}
                 {submission && messages.length > 0 && (
-                  <div className="mt-8 space-y-4 pb-12">
+                  <div className="mt-8 space-y-4 pb-12 min-w-0 overflow-hidden">
                     <Separator className="my-8" />
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1 rounded bg-primary/10 text-primary">
@@ -338,8 +351,8 @@ export default function QuestionPage() {
                       <div key={i}>
                         {m.role === "user" ? (
                           <div className="flex justify-end">
-                            <div className="max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm bg-slate-900 text-white">
-                              <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed">
+                            <div className="max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm bg-slate-900 text-white overflow-hidden">
+                              <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed overflow-hidden break-words [&_code]:before:content-none [&_code]:after:content-none [&_code]:bg-white/15 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[0.9em]">
                                 <ReactMarkdown
                                   remarkPlugins={[remarkMath]}
                                   rehypePlugins={[rehypeKatex]}
@@ -350,8 +363,8 @@ export default function QuestionPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="w-full rounded-2xl px-4 py-2 text-sm shadow-sm bg-white border border-slate-200 text-slate-800">
-                            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-pre:overflow-x-auto">
+                          <div className="w-full min-w-0 rounded-2xl px-4 py-2 text-sm shadow-sm bg-white border border-slate-200 text-slate-800 overflow-hidden">
+                            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-pre:overflow-x-auto overflow-hidden break-words [&_code]:before:content-none [&_code]:after:content-none [&_code]:bg-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-slate-800 [&_code]:text-[0.9em]">
                               <ReactMarkdown
                                 remarkPlugins={[remarkMath]}
                                 rehypePlugins={[rehypeKatex]}

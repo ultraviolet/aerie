@@ -45,9 +45,16 @@ export default function CoursePage() {
       const overEl = (e.target as HTMLElement).closest(
         "textarea, [data-scroll-container]",
       );
-      if (overEl && overEl !== target) return;
+      if (overEl && overEl !== target) {
+        // Allow scroll-through on textareas that aren't internally scrollable
+        const ta = (e.target as HTMLElement).closest("textarea");
+        if (ta && ta.scrollHeight <= ta.clientHeight) {
+          target.scrollBy({ top: e.deltaY, behavior: "smooth" });
+        }
+        return;
+      }
 
-      target.scrollTop += e.deltaY;
+      target.scrollBy({ top: e.deltaY, behavior: "smooth" });
     };
 
     window.addEventListener("wheel", handleGlobalScroll, { passive: true });
@@ -288,7 +295,7 @@ function MaterialsTab({
   materials: Assessment[];
   onRefresh: () => void;
 }) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -345,21 +352,8 @@ function MaterialsTab({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setViewMode("grid")}
-              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200 
-          ${
-            viewMode === "grid"
-              ? "text-white shadow-sm bg-slate-900 hover:scale-[1.03] hover:bg-slate-900 hover:text-white"
-              : "text-slate-900 hover:bg-slate-100 hover:scale-[1.03]"
-          } active:scale-95`}
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               onClick={() => setViewMode("list")}
-              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200 
+              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200
           ${
             viewMode === "list"
               ? "text-white shadow-sm bg-slate-900 hover:scale-[1.03] hover:bg-slate-900 hover:text-white"
@@ -367,6 +361,19 @@ function MaterialsTab({
           } active:scale-95`}
             >
               <List className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={`h-8 px-3 rounded-md text-sm font-semibold transition-all duration-200
+          ${
+            viewMode === "grid"
+              ? "text-white shadow-sm bg-slate-900 hover:scale-[1.03] hover:bg-slate-900 hover:text-white"
+              : "text-slate-900 hover:bg-slate-100 hover:scale-[1.03]"
+          } active:scale-95`}
+            >
+              <LayoutGrid className="size-4" />
             </Button>
           </div>
           <Button
@@ -383,7 +390,7 @@ function MaterialsTab({
           <p className="text-slate-500 text-sm italic mt-8 text-center">
             {searchQuery
               ? "no results found for your search."
-              : "no materials yet. click \"add new material\" to get started."}
+              : 'no materials yet. click "add new material" to get started.'}
           </p>
         ) : (
           <div
@@ -648,7 +655,7 @@ function InfoTab({ courseId }: { courseId: number }) {
   if (loading) {
     return (
       <p className="text-slate-500 text-center py-12 text-sm font-medium animate-pulse">
-        Analyzing your performance history...
+        analyzing your performance history...
       </p>
     );
   }
@@ -792,7 +799,9 @@ function GenerateMaterialView({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
-  const [generatedAssessmentId, setGeneratedAssessmentId] = useState<number | null>(null);
+  const [generatedAssessmentId, setGeneratedAssessmentId] = useState<
+    number | null
+  >(null);
   const [generatedAssessmentTitle, setGeneratedAssessmentTitle] = useState("");
   const [contextUsed, setContextUsed] = useState<string[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -835,8 +844,12 @@ function GenerateMaterialView({
           ]);
         } else if (event === "result") {
           setGeneratedQuestions((data as { questions: Question[] }).questions);
-          setGeneratedAssessmentId((data as { assessment_id?: number }).assessment_id ?? null);
-          setGeneratedAssessmentTitle((data as { assessment_title?: string }).assessment_title ?? "");
+          setGeneratedAssessmentId(
+            (data as { assessment_id?: number }).assessment_id ?? null,
+          );
+          setGeneratedAssessmentTitle(
+            (data as { assessment_title?: string }).assessment_title ?? "",
+          );
           setContextUsed((data as { context_used: string[] }).context_used);
           setHasGenerated(true);
           onGenerated();
@@ -854,7 +867,7 @@ function GenerateMaterialView({
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-none border-none p-0 ">
+      <Card className="shadow-none border-none p-0 overflow-visible rounded-none">
         <CardHeader className="px-0">
           <CardTitle className="text-xl flex items-center gap-2 font-bold px-0">
             generate material
@@ -1003,7 +1016,11 @@ function GenerateMaterialView({
             Material Ready
           </h3>
           <Link
-            to={generatedAssessmentId ? `/assessments/${generatedAssessmentId}` : `/questions/${generatedQuestions[0].id}`}
+            to={
+              generatedAssessmentId
+                ? `/assessments/${generatedAssessmentId}`
+                : `/questions/${generatedQuestions[0].id}`
+            }
             className="block no-underline"
           >
             <Card className="transition-all hover:shadow-md hover:border-primary/40 cursor-pointer">
@@ -1017,7 +1034,8 @@ function GenerateMaterialView({
                   </span>
                 </div>
                 <CardDescription className="text-xs mt-1 font-mono">
-                  {generatedQuestions.length} question{generatedQuestions.length !== 1 ? "s" : ""}
+                  {generatedQuestions.length} question
+                  {generatedQuestions.length !== 1 ? "s" : ""}
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -1049,8 +1067,12 @@ function GenerateMaterialView({
             </div>
             <div className="px-4 py-3 space-y-3">
               {contextUsed.map((chunk, i) => (
-                <p key={i} className="text-[11px] font-mono text-slate-500 whitespace-pre-wrap line-clamp-3 leading-relaxed">
-                  <span className="text-slate-400 select-none">{`/* ${i + 1} */  `}</span>{chunk}
+                <p
+                  key={i}
+                  className="text-[11px] font-mono text-slate-500 whitespace-pre-wrap line-clamp-3 leading-relaxed"
+                >
+                  <span className="text-slate-400 select-none">{`/* ${i + 1} */  `}</span>
+                  {chunk}
                 </p>
               ))}
             </div>

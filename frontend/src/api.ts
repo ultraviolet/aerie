@@ -207,10 +207,12 @@ export const api = {
       feedback: Record<string, unknown>;
       course_id: number | null;
     },
+    signal?: AbortSignal,
   ) =>
     request<{ reply: string }>(`/variants/${variantId}/chat`, {
       method: "POST",
       body: JSON.stringify(body),
+      signal,
     }),
 
   updateCourse: (courseId: number, data: { title: string }) =>
