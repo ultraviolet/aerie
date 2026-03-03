@@ -361,11 +361,11 @@ def chat_about_question(
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-3.1-pro-preview",
             contents=contents,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                max_output_tokens=1024,
+                max_output_tokens=2048,
                 tools=[_CHAT_TOOLS],
             ),
         )
