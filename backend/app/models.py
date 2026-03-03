@@ -22,6 +22,7 @@ class User(Base):
 
 class Course(Base):
     __tablename__ = "courses"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)

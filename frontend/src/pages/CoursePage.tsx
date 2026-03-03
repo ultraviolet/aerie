@@ -488,6 +488,14 @@ function DocumentsTab({ courseId }: { courseId: number }) {
     fetchDocs();
   }, [fetchDocs]);
 
+  // Poll while any doc is still processing
+  useEffect(() => {
+    const hasPending = documents.some((d) => d.status !== "done" && d.status !== "failed");
+    if (!hasPending) return;
+    const interval = setInterval(fetchDocs, 4000);
+    return () => clearInterval(interval);
+  }, [documents, fetchDocs]);
+
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -602,6 +610,15 @@ function DocumentsTab({ courseId }: { courseId: number }) {
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-sm font-medium text-slate-800 truncate">
                     {doc.filename}
+                  </span>
+                  <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border ${
+                    doc.status === "failed"
+                      ? "text-red-600 bg-red-50 border-red-200"
+                      : doc.status === "done"
+                      ? "text-green-600 bg-green-50 border-green-200"
+                      : "text-amber-600 bg-amber-50 border-amber-200"
+                  }`}>
+                    {doc.status === "failed" ? "failed" : doc.status === "done" ? "ready" : "processing…"}
                   </span>
                 </div>
                 <Button

@@ -8,7 +8,7 @@ import shutil
 
 from sqlalchemy.orm import Session
 
-from app.models import Assessment, Course, Question
+from app.models import Assessment, Course, Document, Question
 
 log = logging.getLogger(__name__)
 
@@ -240,21 +240,35 @@ def edit_course(db: Session, course_id: int, user_id: int, new_title: str) -> Co
 
 def delete_course(db: Session, course_id: int, user_id: int) -> bool:
     """Delete a course from the database and permanently remove its directory."""
+    from app.services import supermemory_service as sm
+
     course = db.query(Course).filter(Course.id == course_id, Course.user_id == user_id).first()
     if not course:
         raise ValueError(f"Course {course_id} not found or access denied.")
 
     course_dir = Path(course.path)
 
-    # 1. Clear out dependent records (matching load_course cleanup style)
+    # 1. Clean up Supermemory: delete course documents + user memories
+    tags_to_delete = []
+    if course.container_tag:
+        tags_to_delete.append(course.container_tag)
+    tags_to_delete.append(f"user_{user_id}_course_{course_id}")
+    try:
+        deleted = sm.delete_by_container_tags(tags_to_delete)
+        log.info("Deleted %d Supermemory items for course %d (tags=%s)", deleted, course_id, tags_to_delete)
+    except Exception:
+        log.exception("Failed to clean up Supermemory for course %d", course_id)
+
+    # 2. Clear out dependent records
+    db.query(Document).filter(Document.course_id == course.id).delete()
     db.query(Question).filter(Question.course_id == course.id).delete()
     db.query(Assessment).filter(Assessment.course_id == course.id).delete()
-    
-    # 2. Delete the course record
+
+    # 3. Delete the course record
     db.delete(course)
     db.commit()
 
-    # 3. Permanently remove the directory and all its contents
+    # 4. Permanently remove the directory and all its contents
     if course_dir.exists() and course_dir.is_dir():
         shutil.rmtree(course_dir)
 

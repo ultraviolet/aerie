@@ -72,7 +72,9 @@ def get_document_status(doc_id: str) -> str:
     """Get the processing status of a document. Returns 'processing', 'done', or 'failed'."""
     client = _get_client()
     doc = client.documents.get(doc_id)
-    return getattr(doc, "status", "unknown")
+    status = getattr(doc, "status", "unknown")
+    log.info("Document %s status from Supermemory: %s", doc_id, status)
+    return status
 
 
 def delete_document(doc_id: str) -> None:
@@ -80,6 +82,21 @@ def delete_document(doc_id: str) -> None:
     client = _get_client()
     client.documents.delete(doc_id)
     log.info("Deleted document %s from Supermemory", doc_id)
+
+
+def delete_by_container_tags(tags: list[str]) -> int:
+    """Bulk-delete all documents in the given container tags. Returns count deleted."""
+    client = _get_client()
+    total = 0
+    for tag in tags:
+        try:
+            result = client.documents.delete_bulk(container_tags=[tag])
+            count = int(getattr(result, "deleted_count", 0))
+            total += count
+            log.info("Deleted %d documents for container_tag=%s", count, tag)
+        except Exception:
+            log.exception("Failed to bulk-delete container_tag=%s", tag)
+    return total
 
 
 def _user_tag(user_id: int, course_id: int) -> str:

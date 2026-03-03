@@ -63,7 +63,7 @@ async def upload_document(
         supermemory_id=sm_id,
         filename=filename,
         content_type=file.content_type or "",
-        status="processing",
+        status="queued",
     )
     db.add(doc)
     db.commit()
@@ -80,15 +80,17 @@ def list_documents(
     course = _get_course(course_id, db, user)
     docs = db.query(Document).filter(Document.course_id == course.id).all()
 
-    # Sync status from Supermemory for any docs still processing
+    # Sync status from Supermemory for any docs not yet terminal
+    _TERMINAL = {"done", "failed"}
     dirty = False
     for doc in docs:
-        if doc.status == "processing" and doc.supermemory_id:
+        if doc.status not in _TERMINAL and doc.supermemory_id:
             try:
                 doc.status = sm.get_document_status(doc.supermemory_id)
                 dirty = True
             except Exception:
-                pass
+                doc.status = "failed"
+                dirty = True
     if dirty:
         db.commit()
 
